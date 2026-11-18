@@ -14,7 +14,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from . import services
+from . import roles, services
 from .admin import EXPORT_COLUMNS, _safe_cell
 from .forms import ComplaintCreateForm, DetailsForm, HandlingForm
 from .models import Complaint, Notification
@@ -43,9 +43,14 @@ def _aware(d):
 def dashboard(request):
     today = timezone.localdate()
     month_start = _month_start(today)
-    everything = Complaint.objects.all()
-    qs = everything.filter(case_type=Complaint.CaseType.COMPLAINT)
+    types = roles.allowed_types(request.user)
+    if not types:
+        raise PermissionDenied
+    everything = Complaint.objects.filter(case_type__in=types)
+    # Charts and overdue figures cover whatever this person works on.
+    qs = everything
     enquiries = everything.filter(case_type=Complaint.CaseType.ENQUIRY)
+    complaints_only = everything.filter(case_type=Complaint.CaseType.COMPLAINT)
     open_qs = qs.filter(status__in=OPEN)
     overdue_cutoff = timezone.now() - timedelta(days=settings.COMPLAINT_TARGET_DAYS)
 
@@ -79,16 +84,18 @@ def dashboard(request):
     hour = timezone.localtime().hour
     context = {
         "greeting": "Good morning" if hour < 12 else "Good afternoon" if hour < 17 else "Good evening",
+        "can_complaints": Complaint.CaseType.COMPLAINT in types,
+        "can_enquiries": Complaint.CaseType.ENQUIRY in types,
         "stats": {
-            "open": open_qs.count(),
-            "new": qs.filter(status=Complaint.Status.NEW).count(),
+            "open": complaints_only.filter(status__in=OPEN).count(),
+            "new": complaints_only.filter(status=Complaint.Status.NEW).count(),
             "overdue": open_qs.filter(date_received__lt=overdue_cutoff).count(),
             "mine": everything.filter(status__in=OPEN, assigned_to=request.user).count(),
             "open_enquiries": enquiries.filter(status__in=OPEN).count(),
             "new_enquiries": enquiries.filter(status=Complaint.Status.NEW).count(),
-            "unassigned": open_qs.filter(assigned_to__isnull=True).count(),
-            "received_month": qs.filter(date_received__gte=_aware(month_start)).count(),
-            "resolved_month": qs.filter(resolution_date__gte=month_start).count(),
+            "unassigned": complaints_only.filter(status__in=OPEN, assigned_to__isnull=True).count(),
+            "received_month": complaints_only.filter(date_received__gte=_aware(month_start)).count(),
+            "resolved_month": complaints_only.filter(resolution_date__gte=month_start).count(),
             "avg_days": avg_days,
         },
         "by_status": by_status,
@@ -100,7 +107,7 @@ def dashboard(request):
 
 
 def _filtered(request, case_type=None):
-    qs = Complaint.objects.select_related("assigned_to")
+    qs = Complaint.objects.select_related("assigned_to").filter(case_type__in=roles.allowed_types(request.user))
     case_type = case_type or request.GET.get("type", "")
     if case_type in Complaint.CaseType.values:
         qs = qs.filter(case_type=case_type)
@@ -139,6 +146,7 @@ def _filtered(request, case_type=None):
 
 
 def _case_list(request, case_type):
+    roles.require(request.user, case_type)
     qs, filters = _filtered(request, case_type)
     page = Paginator(qs, 25).get_page(request.GET.get("page"))
     params = request.GET.copy()
@@ -153,7 +161,7 @@ def _case_list(request, case_type):
         "export_querystring": export_params.urlencode(),
         "statuses": Complaint.Status.choices,
         "sources": Complaint.Source.choices,
-        "staff": services.handlers(),
+        "staff": services.handlers(case_type),
         "total": page.paginator.count,
         "case_type": case_type,
         "is_enquiry": is_enquiry,
@@ -178,6 +186,8 @@ def enquiry_list(request):
 @login_required
 @view_required
 def export_csv(request):
+    if request.GET.get("type") in Complaint.CaseType.values:
+        roles.require(request.user, request.GET["type"])
     qs, _ = _filtered(request)
     response = HttpResponse(content_type="text/csv; charset=utf-8")
     kind = "enquiries" if request.GET.get("type") == "enquiry" else "complaints"
@@ -202,8 +212,12 @@ def _email_client(request, complaint, message, acknowledgement=False):
 @login_required
 @permission_required("complaints.add_complaint", raise_exception=True)
 def complaint_new(request):
-    initial = {"case_type": request.GET.get("type")} if request.GET.get("type") in Complaint.CaseType.values else {}
-    form = ComplaintCreateForm(request.POST or None, initial=initial)
+    types = roles.allowed_types(request.user)
+    if not types:
+        raise PermissionDenied
+    wanted = request.GET.get("type")
+    initial = {"case_type": wanted if wanted in types else types[0]}
+    form = ComplaintCreateForm(request.POST or None, initial=initial, allowed_types=types)
     if request.method == "POST" and form.is_valid():
         complaint = form.save()
         services.record_new(complaint, actor=request.user)
@@ -218,6 +232,7 @@ def complaint_new(request):
 @view_required
 def complaint_detail(request, reference):
     complaint = get_object_or_404(Complaint.objects.select_related("assigned_to"), reference=reference)
+    roles.require(request.user, complaint.case_type)
     can_change = request.user.has_perm("complaints.change_complaint")
     handling_form = HandlingForm(instance=complaint)
     details_form = DetailsForm(instance=complaint)
@@ -237,7 +252,7 @@ def complaint_detail(request, reference):
                     _email_client(request, complaint, services.status_message(complaint, note))
         elif action == "assign":
             user_id = request.POST.get("assigned_to", "")
-            user = services.handlers().filter(pk=user_id).first() if user_id else None
+            user = services.handlers(complaint.case_type).filter(pk=user_id).first() if user_id else None
             done = services.assign(complaint, user, request.user)
             if done:
                 messages.success(request, f"Assigned to {services.display_name(user)}." if user else "Complaint unassigned.")
@@ -281,7 +296,7 @@ def complaint_detail(request, reference):
         "handling_form": handling_form,
         "details_form": details_form,
         "statuses": Complaint.Status.choices,
-        "staff": services.handlers(),
+        "staff": services.handlers(complaint.case_type),
         "nav": "enquiries" if complaint.is_enquiry else "list",
     }
     return render(request, "portal/complaint_detail.html", context)
@@ -342,6 +357,7 @@ CONVERSATION_KINDS = ["client", "reply"]
 @view_required
 def conversation(request, reference):
     complaint = get_object_or_404(Complaint.objects.select_related("assigned_to"), reference=reference)
+    roles.require(request.user, complaint.case_type)
     can_change = request.user.has_perm("complaints.change_complaint")
     if request.method == "POST":
         if not can_change:
@@ -386,6 +402,7 @@ def conversation(request, reference):
 @view_required
 def conversation_feed(request, reference):
     complaint = get_object_or_404(Complaint, reference=reference)
+    roles.require(request.user, complaint.case_type)
     latest = complaint.events.filter(kind__in=CONVERSATION_KINDS).order_by("-id").values_list("pk", flat=True).first()
     return JsonResponse({"latest": latest or 0})
 
@@ -398,7 +415,9 @@ def conversations(request):
 
     show = request.GET.get("show", "")
     seen, rows = set(), []
-    events = ComplaintEvent.objects.filter(kind__in=CONVERSATION_KINDS).select_related("complaint", "complaint__assigned_to", "actor")
+    events = ComplaintEvent.objects.filter(
+        kind__in=CONVERSATION_KINDS, complaint__case_type__in=roles.allowed_types(request.user)
+    ).select_related("complaint", "complaint__assigned_to", "actor")
     for e in events.order_by("-created_at", "-id")[:500]:
         if e.complaint_id in seen:
             continue

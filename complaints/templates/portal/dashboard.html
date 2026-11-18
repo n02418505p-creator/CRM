@@ -6,44 +6,50 @@
     <p class="eyebrow">{% now "l j F Y" %}</p>
     <h1>{{ greeting }}, {{ user.first_name|default:user.username }}</h1>
   </div>
-  <a class="btn btn-ghost" href="{% url 'portal:list' %}?status=open">View open complaints</a>
+  <a class="btn btn-ghost" href="{% url home_list %}?status=open">View open {% if can_complaints %}complaints{% else %}enquiries{% endif %}</a>
 </div>
 
 <div class="kpis">
+  {% if can_complaints %}
   <div class="card kpi accent">
     <div class="label">Open complaints</div>
     <div class="value">{{ stats.open }}</div>
     <div class="sub">{{ stats.new }} new · {{ stats.unassigned }} unassigned</div>
     <a class="stretched" href="{% url 'portal:list' %}?status=open" aria-label="Open complaints"></a>
   </div>
+  {% endif %}
   <div class="card kpi {% if stats.overdue %}alert{% endif %}">
     <div class="label">Overdue</div>
     <div class="value">{{ stats.overdue }}</div>
     <div class="sub">Open longer than {{ target_days }} days</div>
-    <a class="stretched" href="{% url 'portal:list' %}?status=overdue" aria-label="Overdue complaints"></a>
+    <a class="stretched" href="{% url home_list %}?status=overdue" aria-label="Overdue"></a>
   </div>
   <div class="card kpi">
     <div class="label">Assigned to me</div>
     <div class="value">{{ stats.mine }}</div>
     <div class="sub">Open complaints and enquiries</div>
-    <a class="stretched" href="{% url 'portal:list' %}?assigned=me&status=open" aria-label="My open complaints"></a>
+    <a class="stretched" href="{% url home_list %}?assigned=me&status=open" aria-label="My open cases"></a>
   </div>
-  <div class="card kpi">
+  {% if can_enquiries %}
+  <div class="card kpi {% if not can_complaints %}accent{% endif %}">
     <div class="label">Open enquiries</div>
     <div class="value">{{ stats.open_enquiries }}</div>
     <div class="sub">{{ stats.new_enquiries }} new from clients</div>
     <a class="stretched" href="{% url 'portal:enquiries' %}?status=open" aria-label="Open enquiries"></a>
   </div>
+  {% endif %}
+  {% if can_complaints %}
   <div class="card kpi">
     <div class="label">Complaints this month</div>
     <div class="value">{{ stats.received_month }}</div>
     <div class="sub">{{ stats.resolved_month }} resolved{% if stats.avg_days is not None %} · avg {{ stats.avg_days }} days to resolve{% endif %}</div>
   </div>
+  {% endif %}
 </div>
 
 <div class="grid g-3">
   <section class="card">
-    <div class="card-head"><h2>Latest cases</h2><a class="small" href="{% url 'portal:list' %}">See all</a></div>
+    <div class="card-head"><h2>Latest cases</h2><a class="small" href="{% url home_list %}">See all</a></div>
     <div class="table-wrap">
       <table class="list">
         <thead><tr><th>Reference</th><th>Client</th><th>Received</th><th>Assigned to</th><th>Status</th></tr></thead>
@@ -66,10 +72,10 @@
 
   <div class="stack">
     <section class="card card-pad">
-      <h2 style="margin-bottom:1rem">Complaints by status</h2>
+      <h2 style="margin-bottom:1rem">By status</h2>
       <div class="bars">
         {% for s in by_status %}
-        <a class="bar-row" href="{% url 'portal:list' %}?status={{ s.key }}">
+        <a class="bar-row" href="{% url home_list %}?status={{ s.key }}">
           <span>{{ s.label }}</span>
           <span class="bar"><span class="s-{{ s.key }}" style="width:{{ s.pct }}%"></span></span>
           <strong style="text-align:right">{{ s.count }}</strong>
@@ -98,7 +104,7 @@
 </div>
 
 <section class="card" style="margin-top:1.2rem">
-  <div class="card-head"><h2>My open cases</h2><a class="small" href="{% url 'portal:list' %}?assigned=me&status=open">See all</a></div>
+  <div class="card-head"><h2>My open cases</h2><a class="small" href="{% url home_list %}?assigned=me&status=open">See all</a></div>
   <div class="table-wrap">
     <table class="list">
       <thead><tr><th>Reference</th><th>Client</th><th>Details</th><th>Days open</th><th>Status</th></tr></thead>

@@ -69,6 +69,10 @@ class Complaint(models.Model):
 
     class Meta:
         ordering = ["-date_received"]
+        permissions = [
+            ("handle_complaints", "Can work on complaints"),
+            ("handle_enquiries", "Can work on enquiries"),
+        ]
 
     def __str__(self):
         return f"{self.reference} – {self.client_name}"

@@ -37,9 +37,13 @@ class ComplaintCreateForm(forms.ModelForm):
             "nature_of_complaint": forms.Textarea(attrs={"rows": 6}),
         }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, allowed_types=None, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["assigned_to"].queryset = services.handlers()
+        allowed_types = allowed_types or list(Complaint.CaseType.values)
+        self.fields["case_type"].choices = [c for c in Complaint.CaseType.choices if c[0] in allowed_types]
+        # Only people who can work on this type of case can be assigned it.
+        wanted = self.data.get("case_type") or self.initial.get("case_type") or allowed_types[0]
+        self.fields["assigned_to"].queryset = services.handlers(wanted if wanted in allowed_types else allowed_types[0])
         self.fields["date_received"].input_formats = [DATETIME_FORMAT, "%Y-%m-%d %H:%M"]
         self.fields["source"].choices = [c for c in Complaint.Source.choices if c[0] != Complaint.Source.WEBSITE]
 

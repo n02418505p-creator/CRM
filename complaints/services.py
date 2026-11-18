@@ -14,15 +14,18 @@ def display_name(user):
     return user.get_full_name() or user.get_username()
 
 
-def handlers():
-    """Active staff who can see complaints."""
+def handlers(case_type=None):
+    """Active staff who can work on this type of case (or on any case)."""
+    from .roles import CODENAME_FOR_TYPE
+
+    codenames = [CODENAME_FOR_TYPE[case_type]] if case_type else list(CODENAME_FOR_TYPE.values())
     User = get_user_model()
     return (
         User.objects.filter(is_active=True)
         .filter(
             Q(is_superuser=True)
-            | Q(groups__permissions__codename="view_complaint")
-            | Q(user_permissions__codename="view_complaint")
+            | Q(groups__permissions__codename__in=codenames)
+            | Q(user_permissions__codename__in=codenames)
         )
         .distinct()
         .order_by("first_name", "last_name", "username")
@@ -47,7 +50,7 @@ def record_new(complaint, actor=None):
         log(complaint, ComplaintEvent.Kind.CREATED, f"{noun} received via {source}.")
     else:
         log(complaint, ComplaintEvent.Kind.CREATED, f"{noun} logged by {display_name(actor)} ({source}).", actor)
-    notify(handlers(), complaint, "new", f"New {complaint.noun} from {complaint.client_name} ({complaint.reference})", exclude=actor)
+    notify(handlers(complaint.case_type), complaint, "new", f"New {complaint.noun} from {complaint.client_name} ({complaint.reference})", exclude=actor)
     if complaint.assigned_to and (actor is None or complaint.assigned_to.pk != actor.pk):
         notify([complaint.assigned_to], complaint, "assigned", f"You were assigned {complaint.reference} – {complaint.client_name}")
 
@@ -247,6 +250,6 @@ def record_reply(complaint, text, sender, sender_name="", message_id=""):
     note = f"{who} replied to {complaint.reference}"
     if not complaint.is_open:
         note += f" (complaint is {complaint.get_status_display()})"
-    recipients = [complaint.assigned_to] if complaint.assigned_to else list(handlers())
+    recipients = [complaint.assigned_to] if complaint.assigned_to else list(handlers(complaint.case_type))
     notify(recipients, complaint, "reply", note)
     return event, True

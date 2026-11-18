@@ -23,10 +23,12 @@ PAYLOAD = {
 }
 
 
-def make_handler(username, **extra):
+def make_handler(username, group="Complaint handlers", **extra):
     call_command("setup_complaints", stdout=open("/dev/null", "w"))
     user = get_user_model().objects.create_user(username, f"{username}@example.com", "pw-very-long-123", **extra)
-    user.groups.add(Group.objects.get(name="Complaint handlers"))
+    groups = [group] if isinstance(group, str) else group
+    for name in groups:
+        user.groups.add(Group.objects.get(name=name))
     return user
 
 
@@ -342,7 +344,7 @@ class EnquiryTests(TestCase):
         return self.client.post(url, data=json.dumps(data), content_type="application/json", HTTP_X_API_KEY=API_KEY)
 
     def test_enquiry_from_contact_form(self):
-        handler = make_handler("thapelo")
+        handler = make_handler("thapelo", group="Client service")
         resp = self.post(self.PAYLOAD)
         self.assertEqual(resp.status_code, 201)
         e = Complaint.objects.get()
@@ -360,7 +362,7 @@ class EnquiryTests(TestCase):
     def test_lists_are_separate_and_reply_matches(self):
         self.post(self.PAYLOAD)
         Complaint.objects.create(client_name="Complainer", phone_number="1", nature_of_complaint="x")
-        user = make_handler("monalisa")
+        user = make_handler("monalisa", group=["Complaint handlers", "Client service"])
         self.client.force_login(user)
         enquiries = self.client.get("/enquiries/")
         self.assertContains(enquiries, "Rudo")
@@ -378,7 +380,7 @@ class EnquiryTests(TestCase):
         self.assertIn("enquiries-register", self.client.get("/complaints/export.csv?type=enquiry")["Content-Disposition"])
 
     def test_log_enquiry_in_portal_without_phone(self):
-        user = make_handler("monalisa")
+        user = make_handler("monalisa", group="Client service")
         self.client.force_login(user)
         self.client.post("/complaints/new/", {
             "case_type": "enquiry", "date_received": timezone.localtime().strftime("%Y-%m-%dT%H:%M"),
@@ -393,6 +395,70 @@ class EnquiryTests(TestCase):
         self.assertContains(resp, 'type="password"')
         self.assertContains(resp, 'id="pwToggle"')
         self.assertContains(resp, "MMC CRM")
+
+
+class RoleTests(TestCase):
+    def setUp(self):
+        self.complaint = Complaint.objects.create(client_name="Complainer", phone_number="1", nature_of_complaint="x")
+        self.enquiry = Complaint.objects.create(
+            case_type="enquiry", client_name="Asker", email_address="a@example.com", nature_of_complaint="Q?"
+        )
+        self.handler = make_handler("handler", group="Complaint handlers")
+        self.service = make_handler("service", group="Client service")
+        self.boss = make_handler("boss", group="Administrators")
+
+    def detail(self, case):
+        return reverse("portal:detail", args=[case.reference])
+
+    def test_complaint_handler_sees_only_complaints(self):
+        self.client.force_login(self.handler)
+        self.assertEqual(self.client.get("/complaints/").status_code, 200)
+        self.assertEqual(self.client.get("/enquiries/").status_code, 403)
+        self.assertEqual(self.client.get(self.detail(self.enquiry)).status_code, 403)
+        self.assertEqual(self.client.get(reverse("portal:conversation", args=[self.enquiry.reference])).status_code, 403)
+        dash = self.client.get("/")
+        self.assertNotContains(dash, "Asker")
+        self.assertNotContains(dash, 'href="/enquiries/"')
+        self.assertNotContains(dash, "Manage staff")
+        self.assertNotIn("Asker", self.client.get("/complaints/export.csv").content.decode("utf-8-sig"))
+        self.assertEqual(self.client.get("/complaints/export.csv?type=enquiry").status_code, 403)
+
+    def test_client_service_sees_only_enquiries(self):
+        self.client.force_login(self.service)
+        self.assertEqual(self.client.get("/enquiries/").status_code, 200)
+        self.assertEqual(self.client.get("/complaints/").status_code, 403)
+        self.assertEqual(self.client.get(self.detail(self.complaint)).status_code, 403)
+        self.assertEqual(self.client.get(self.detail(self.enquiry)).status_code, 200)
+        form = self.client.get("/complaints/new/").context["form"]
+        self.assertEqual([c[0] for c in form.fields["case_type"].choices], ["enquiry"])
+        resp = self.client.post("/complaints/new/", {
+            "case_type": "complaint", "date_received": timezone.localtime().strftime("%Y-%m-%dT%H:%M"),
+            "source": "phone", "client_name": "Sneaky", "phone_number": "1", "email_address": "",
+            "subject": "", "nature_of_complaint": "x", "staff_member_involved": "", "assigned_to": "",
+        })
+        self.assertFalse(Complaint.objects.filter(client_name="Sneaky").exists())
+        self.assertEqual(self.client.get("/").context["role_label"], "Client service")
+
+    def test_administrator_sees_everything(self):
+        self.boss.refresh_from_db()
+        self.assertTrue(self.boss.is_staff)  # set automatically when added to Administrators
+        self.client.force_login(self.boss)
+        for url in ["/complaints/", "/enquiries/", self.detail(self.complaint), self.detail(self.enquiry), "/admin/auth/user/"]:
+            with self.subTest(url=url):
+                self.assertEqual(self.client.get(url).status_code, 200)
+        self.assertContains(self.client.get("/"), "Manage staff")
+
+    def test_new_case_notifications_go_to_the_right_team(self):
+        from . import services
+        services.record_new(Complaint.objects.create(case_type="enquiry", client_name="N", email_address="n@example.com", nature_of_complaint="?"))
+        recipients = set(Notification.objects.filter(kind="new").values_list("recipient__username", flat=True))
+        self.assertEqual(recipients, {"service", "boss"})
+
+    def test_assignment_list_matches_case_type(self):
+        self.client.force_login(self.boss)
+        staff = {u.username for u in self.client.get(self.detail(self.enquiry)).context["staff"]}
+        self.assertIn("service", staff)
+        self.assertNotIn("handler", staff)
 
 
 class AdminTests(TestCase):

@@ -4,7 +4,7 @@
 <div class="page-head">
   <div>
     <p class="eyebrow">New case</p>
-    <h1>Log a complaint or enquiry</h1>
+    <h1>Log {% if can_complaints and can_enquiries %}a complaint or enquiry{% elif can_enquiries %}an enquiry{% else %}a complaint{% endif %}</h1>
     <p class="muted" style="margin:.4rem 0 0">For complaints and questions received by phone, email or in person. Website complaints and Contact Us messages are added automatically.</p>
   </div>
 </div>

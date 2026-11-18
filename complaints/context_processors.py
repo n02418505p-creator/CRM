@@ -30,6 +30,19 @@ def portal(request):
     }
     user = getattr(request, "user", None)
     if user is not None and user.is_authenticated:
+        from . import roles
+        from .models import Complaint
+
+        types = roles.allowed_types(user)
+        context.update(
+            {
+                "can_complaints": Complaint.CaseType.COMPLAINT in types,
+                "can_enquiries": Complaint.CaseType.ENQUIRY in types,
+                "is_portal_admin": roles.is_admin(user),
+                "role_label": roles.role_label(user),
+                "home_list": "portal:list" if Complaint.CaseType.COMPLAINT in types else "portal:enquiries",
+            }
+        )
         notes = user.complaint_notifications.select_related("complaint")
         recent = list(notes[:6])
         context.update(
