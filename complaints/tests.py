@@ -239,6 +239,50 @@ class ClientEmailTests(TestCase):
         self.assertIn("Your reference number is CMP-", mail.outbox[0].body)
 
 
+@override_settings(COMPLAINTS_API_KEY=API_KEY)
+class ClientReplyTests(TestCase):
+    def setUp(self):
+        self.handler = make_handler("thapelo")
+        self.c = Complaint.objects.create(
+            client_name="Tendai Moyo", phone_number="1", email_address="Tendai@Example.com",
+            nature_of_complaint="Refund not received.",
+        )
+
+    def post(self, **data):
+        return self.client.post(
+            "/api/complaints/inbound/", data=json.dumps(data), content_type="application/json", HTTP_X_API_KEY=API_KEY
+        )
+
+    def test_reply_added_to_timeline_and_notifies(self):
+        text = (
+            "I still have not received my refund.\n\nTendai\n\n________________________________\n"
+            "From: MMC Capital Complaints <research@mmccapitalzim.com>\nDear Tendai,\nYour complaint ..."
+        )
+        resp = self.post(from_email="tendai@example.com", from_name="Tendai Moyo",
+                         subject=f"RE: Update on your complaint {self.c.reference} – MMC Capital", text=text, message_id="<abc@mail>")
+        self.assertTrue(resp.json()["matched"])
+        event = self.c.events.get(kind=ComplaintEvent.Kind.REPLY)
+        self.assertEqual(event.message, "I still have not received my refund.\n\nTendai")
+        self.assertTrue(Notification.objects.filter(recipient=self.handler, kind="reply").exists())
+        # the same email delivered twice is only added once
+        self.post(from_email="tendai@example.com", subject=f"RE: {self.c.reference}", text=text, message_id="<abc@mail>")
+        self.assertEqual(self.c.events.filter(kind=ComplaintEvent.Kind.REPLY).count(), 1)
+
+    def test_reply_shows_on_portal_and_in_next_update(self):
+        self.post(from_email="tendai@example.com", subject=f"Re: {self.c.reference}", text="Please call me.", message_id="<1@x>")
+        self.client.force_login(self.handler)
+        url = reverse("portal:detail", args=[self.c.reference])
+        self.assertContains(self.client.get(url), "Please call me.")
+        self.client.post(url, {"action": "client", "message": "We will call you today."})
+        self.assertIn("(your reply)", mail.outbox[-1].body)
+        self.assertIn("Please call me.", mail.outbox[-1].body)
+
+    def test_unmatched_and_unauthorised(self):
+        self.assertFalse(self.post(from_email="x@example.com", subject="Hello", text="hi").json()["matched"])
+        resp = self.client.post("/api/complaints/inbound/", data="{}", content_type="application/json", HTTP_X_API_KEY="bad")
+        self.assertEqual(resp.status_code, 401)
+
+
 class AdminTests(TestCase):
     def test_admin_still_works(self):
         admin = get_user_model().objects.create_superuser("boss", "b@example.com", "pw-very-long-123")

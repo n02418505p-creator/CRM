@@ -237,3 +237,5 @@ label.check input { margin-top: .2rem; accent-color: var(--navy); }
   .login-hero { display: none; }
   .bell-menu { width: 300px; }
 }
+.timeline .k-reply::before { background: var(--navy); box-shadow: 0 0 0 1px var(--navy); }
+.timeline .k-reply .msg { background: var(--navy-50); border: 1px solid #D6DEF0; padding: .55rem .7rem; border-radius: 8px; }

@@ -43,6 +43,17 @@ foreach ($files as $file) {
     }
 }
 
+// Client replies that could not reach the portal.
+foreach (glob(mmc_dir('inbound-queue') . '/*.eml') ?: [] as $file) {
+    $result = mmc_process_inbound((string) file_get_contents($file));
+    if ($result['ok'] || $result['permanent']) {
+        unlink($file);
+        echo "Inbound email processed: " . basename($file) . "\n";
+    } else {
+        echo "Inbound email still queued: " . basename($file) . " ({$result['error']})\n";
+    }
+}
+
 // Tidy old rate-limit counters.
 foreach (glob(mmc_dir('ratelimit') . '/*') ?: [] as $f) {
     if (filemtime($f) < time() - 7200) {

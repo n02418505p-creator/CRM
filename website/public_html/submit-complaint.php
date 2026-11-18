@@ -115,7 +115,7 @@ mmc_mail(
         . "A copy of what you submitted is below.\n\n"
         . mmc_complaint_summary($payload)
         . "\nKind regards,\nMMC Capital\n",
-    $cfg['team_emails'][0] ?? null
+    mmc_client_reply_to()
 );
 
 respond(200, ['ok' => true, 'reference' => $payload['reference']]);

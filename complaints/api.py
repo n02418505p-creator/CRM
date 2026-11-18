@@ -21,7 +21,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
 from . import services
-from .models import REFERENCE_PATTERN, Complaint
+from .models import REFERENCE_PATTERN, REFERENCE_SEARCH, Complaint
 
 logger = logging.getLogger(__name__)
 
@@ -120,3 +120,35 @@ def create_complaint(request):
     services.record_new(complaint)
     logger.info("Complaint %s received from website", complaint.reference)
     return JsonResponse({"ok": True, "reference": complaint.reference}, status=201)
+
+
+@csrf_exempt
+@require_POST
+def inbound_reply(request):
+    """Client replies, forwarded by the website server's inbound-email script.
+
+    Body (JSON): from_email, from_name, subject, text, message_id
+    """
+    if not _authorised(request):
+        return JsonResponse({"ok": False, "error": "unauthorised"}, status=401)
+    try:
+        data = json.loads(request.body or b"{}")
+    except (ValueError, UnicodeDecodeError):
+        return JsonResponse({"ok": False, "error": "invalid JSON"}, status=400)
+    if not isinstance(data, dict):
+        return JsonResponse({"ok": False, "error": "expected a JSON object"}, status=400)
+
+    fields = {k: data.get(k) if isinstance(data.get(k), str) else "" for k in ("from_email", "from_name", "subject", "text", "message_id")}
+    match = REFERENCE_SEARCH.search(fields["subject"]) or REFERENCE_SEARCH.search(fields["text"])
+    complaint = Complaint.objects.filter(reference=match.group(0).upper()).first() if match else None
+    if complaint is None:
+        logger.info("Inbound email from %s did not match a complaint", fields["from_email"])
+        return JsonResponse({"ok": True, "matched": False})
+    if not fields["text"].strip():
+        return JsonResponse({"ok": True, "matched": True, "reference": complaint.reference, "empty": True})
+
+    event, created = services.record_reply(
+        complaint, fields["text"], fields["from_email"], fields["from_name"].strip()[:150], fields["message_id"].strip()
+    )
+    logger.info("Reply from %s added to %s", fields["from_email"], complaint.reference)
+    return JsonResponse({"ok": True, "matched": True, "reference": complaint.reference, "duplicate": not created})

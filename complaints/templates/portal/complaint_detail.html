@@ -111,7 +111,7 @@
     <section class="card card-pad">
       <h3 style="margin-bottom:.3rem">Message the client</h3>
       {% if c.email_address %}
-      <p class="muted small" style="margin:0 0 .8rem">Sent to {{ c.email_address }} with the latest status and previous updates. Replies go to {{ reply_to }}.</p>
+      <p class="muted small" style="margin:0 0 .8rem">Sent to {{ c.email_address }} with the latest status and previous updates. When the client replies, it appears below and a copy goes to {{ reply_to }}.</p>
       <form method="post">{% csrf_token %}
         <input type="hidden" name="action" value="client">
         <div class="field"><textarea name="message" rows="4" placeholder="Dear Valued Client, …" aria-label="Message to the client" required></textarea></div>
@@ -135,7 +135,7 @@
       <ul class="timeline">
         {% for e in events %}
         <li class="k-{{ e.kind }}">
-          <div class="when">{{ e.created_at|date:"j M Y, H:i" }} · {% if e.actor %}{{ e.actor.get_full_name|default:e.actor.username }}{% else %}System{% endif %}{% if e.kind == "client" %} · <strong>Emailed to client</strong>{% endif %}</div>
+          <div class="when">{{ e.created_at|date:"j M Y, H:i" }} · {% if e.kind == "reply" %}<strong>{{ c.client_name }} replied</strong>{% if e.sender and e.sender != c.email_address|lower %} from {{ e.sender }}{% endif %}{% elif e.actor %}{{ e.actor.get_full_name|default:e.actor.username }}{% else %}System{% endif %}{% if e.kind == "client" %} · <strong>Emailed to client</strong>{% endif %}</div>
           <p class="msg">{{ e.message }}</p>
         </li>
         {% empty %}

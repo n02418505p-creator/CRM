@@ -15,7 +15,7 @@ Handled by:  {{ handler }}
 
 Previous updates
 {% for e in history %}
-{{ e.created_at|date:"Y-m-d H:i" }} - {% if e.actor %}{{ e.actor.get_full_name|default:e.actor.username }}{% else %}MMC Capital{% endif %}
+{{ e.created_at|date:"Y-m-d H:i" }} - {% if e.kind == "reply" %}{{ c.client_name }} (your reply){% elif e.actor %}{{ e.actor.get_full_name|default:e.actor.username }}{% else %}MMC Capital{% endif %}
 {{ e.message }}
 {% endfor %}{% endif %}
 

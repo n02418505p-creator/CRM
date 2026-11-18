@@ -6,6 +6,7 @@ from django.db import models
 from django.utils import timezone
 
 REFERENCE_PATTERN = re.compile(r"^CMP-\d{8}-[0-9A-F]{6}$")
+REFERENCE_SEARCH = re.compile(r"CMP-\d{8}-[0-9A-F]{6}", re.IGNORECASE)
 
 
 def generate_reference():
@@ -92,6 +93,7 @@ class ComplaintEvent(models.Model):
         NOTE = "note", "Note"
         UPDATED = "updated", "Update"
         CLIENT = "client", "Emailed to client"
+        REPLY = "reply", "Client reply"
 
     complaint = models.ForeignKey(Complaint, on_delete=models.CASCADE, related_name="events")
     actor = models.ForeignKey(
@@ -99,6 +101,9 @@ class ComplaintEvent(models.Model):
     )
     kind = models.CharField(max_length=20, choices=Kind.choices)
     message = models.TextField()
+    # For client replies: the sender and the email's Message-ID (to ignore duplicates).
+    sender = models.CharField(max_length=254, blank=True)
+    external_id = models.CharField(max_length=255, blank=True, db_index=True)
     created_at = models.DateTimeField(default=timezone.now)
 
     class Meta:

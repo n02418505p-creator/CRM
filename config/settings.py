@@ -27,7 +27,12 @@ BRAND_LOGO_URL = os.environ.get("BRAND_LOGO_URL", "https://mmccapitalzim.com/img
 
 # Emails to clients are sent through the website server (see website/public_html/complaints-mail.php).
 MAIL_RELAY_URL = os.environ.get("MAIL_RELAY_URL", "https://www.mmccapitalzim.com/complaints-mail.php")
-COMPLAINTS_REPLY_TO = os.environ.get("COMPLAINTS_REPLY_TO", "research@mmccapitalzim.com")
+# Where client replies go: the team inbox, plus the address that files replies into the portal.
+COMPLAINTS_REPLY_TO = [
+    a.strip()
+    for a in os.environ.get("COMPLAINTS_REPLY_TO", "research@mmccapitalzim.com,replies@cases.mmccapitalzim.com").split(",")
+    if a.strip()
+]
 EMAIL_BACKEND = os.environ.get("EMAIL_BACKEND", "complaints.mail.RelayEmailBackend")
 
 # Shared secret the website uses when it sends complaints to /api/complaints/

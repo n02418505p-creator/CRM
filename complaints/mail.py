@@ -19,7 +19,7 @@ class RelayEmailBackend(BaseEmailBackend):
                     "to": recipient,
                     "subject": message.subject,
                     "body": message.body,
-                    "reply_to": (message.reply_to or [None])[0],
+                    "reply_to": ", ".join(message.reply_to or []),
                 }
                 request = urllib.request.Request(
                     settings.MAIL_RELAY_URL,
