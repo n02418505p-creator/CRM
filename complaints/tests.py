@@ -431,8 +431,8 @@ class EnquiryDetailTests(TestCase):
         self.assertContains(page, "We structure and facilitate bespoke financing solutions")
         self.assertContains(page, "Acme Holdings")
         listing = self.client.get("/enquiries/?service=Capital+Raising&enquiry_type=service")
-        self.assertContains(listing, "Chipo")
-        self.assertNotContains(self.client.get("/enquiries/?service=Securities+Trading"), "Chipo")
+        self.assertEqual(listing.context["total"], 1)
+        self.assertEqual(self.client.get("/enquiries/?service=Securities+Trading").context["total"], 0)
         self.assertContains(self.client.get("/"), "Enquiries by service")
 
     def test_contact_form_topic(self):
