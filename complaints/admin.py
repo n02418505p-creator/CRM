@@ -9,8 +9,8 @@ from django.utils.text import Truncator
 
 from .models import Complaint
 
-admin.site.site_header = "MMC Capital · Complaints Register"
-admin.site.site_title = "MMC Complaints"
+admin.site.site_header = "MMC Capital · CRM"
+admin.site.site_title = "MMC CRM"
 admin.site.index_title = "Administration (staff accounts and raw records)"
 admin.site.site_url = "/"  # "View site" goes back to the complaints portal
 
@@ -24,11 +24,13 @@ STATUS_COLOURS = {
 # Column order matches the existing paper/Excel register.
 EXPORT_COLUMNS = [
     ("Reference", lambda c: c.reference),
+    ("Type", lambda c: c.get_case_type_display()),
     ("Date Received", lambda c: timezone.localtime(c.date_received).strftime("%Y-%m-%d %H:%M")),
     ("Client Name", lambda c: c.client_name),
     ("Phone Number", lambda c: c.phone_number),
     ("Email Address", lambda c: c.email_address),
     ("Nature of the Complaint", lambda c: c.nature_of_complaint),
+    ("Subject", lambda c: c.subject),
     ("Staff Member Involved", lambda c: c.staff_member_involved),
     ("Action Taken", lambda c: c.action_taken),
     ("Resolution Date", lambda c: c.resolution_date.isoformat() if c.resolution_date else ""),
@@ -68,6 +70,7 @@ class OpenFilter(admin.SimpleListFilter):
 class ComplaintAdmin(admin.ModelAdmin):
     list_display = (
         "reference",
+        "case_type",
         "date_received",
         "client_name",
         "phone_number",
@@ -80,7 +83,7 @@ class ComplaintAdmin(admin.ModelAdmin):
         "days_open_display",
     )
     list_display_links = ("reference", "client_name")
-    list_filter = (OpenFilter, "status", "assigned_to", "source", "date_received")
+    list_filter = ("case_type", OpenFilter, "status", "assigned_to", "source", "date_received")
     search_fields = (
         "reference",
         "client_name",
@@ -97,9 +100,9 @@ class ComplaintAdmin(admin.ModelAdmin):
     show_facets = admin.ShowFacets.ALWAYS
     readonly_fields = ("reference", "days_open_display", "created_at", "updated_at")
     fieldsets = (
-        ("Complaint", {"fields": ("reference", "date_received", "source", "status", "assigned_to")}),
+        ("Case", {"fields": ("case_type", "reference", "date_received", "source", "status", "assigned_to")}),
         ("Client details", {"fields": ("client_name", "phone_number", "email_address")}),
-        ("Details", {"fields": ("nature_of_complaint", "staff_member_involved")}),
+        ("Details", {"fields": ("subject", "nature_of_complaint", "staff_member_involved")}),
         (
             "Handling",
             {

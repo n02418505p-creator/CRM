@@ -1,7 +1,7 @@
 {% extends "portal/base.html" %}
 {% block title %}{{ c.reference }}{% endblock %}
 {% block content %}
-<p class="small" style="margin:0 0 .8rem"><a href="{% url 'portal:list' %}">← All complaints</a></p>
+<p class="small" style="margin:0 0 .8rem">{% if c.is_enquiry %}<a href="{% url 'portal:enquiries' %}">← All enquiries</a>{% else %}<a href="{% url 'portal:list' %}">← All complaints</a>{% endif %}</p>
 
 <div class="detail-head">
   <div>
@@ -9,6 +9,7 @@
     <h1>{{ c.client_name }}</h1>
     <div class="meta">
       {% include "portal/_status.html" %}
+      <span class="tag">{{ c.noun_title }}</span>
       <span class="tag">{{ c.get_source_display }}</span>
       <span>Received {{ c.date_received|date:"j F Y, H:i" }}</span>
       <span>{{ c.days_open }} day{{ c.days_open|pluralize }} {% if c.is_open %}open{% else %}to resolve{% endif %}</span>
@@ -21,14 +22,15 @@
   <div class="stack">
     <section class="card card-pad">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
-        <h2>Complaint</h2>
+        <h2>{{ c.noun_title }}</h2>
       </div>
       <dl class="kv">
         <dt>Client name</dt><dd>{{ c.client_name }}</dd>
         <dt>Phone number</dt><dd>{% if c.phone_number %}<a href="tel:{{ c.phone_number|cut:' ' }}">{{ c.phone_number }}</a>{% else %}—{% endif %}</dd>
         <dt>Email address</dt><dd>{% if c.email_address %}<a href="mailto:{{ c.email_address }}?subject={{ c.reference|urlencode }}">{{ c.email_address }}</a>{% else %}—{% endif %}</dd>
-        <dt>Staff member involved</dt><dd>{{ c.staff_member_involved|default:"—" }}</dd>
-        <dt>Nature of the complaint</dt><dd><p class="prose">{{ c.nature_of_complaint }}</p></dd>
+        {% if not c.is_enquiry or c.staff_member_involved %}<dt>Staff member involved</dt><dd>{{ c.staff_member_involved|default:"—" }}</dd>{% endif %}
+        {% if c.subject %}<dt>Subject</dt><dd>{{ c.subject }}</dd>{% endif %}
+        <dt>{{ c.details_label }}</dt><dd><p class="prose">{{ c.nature_of_complaint }}</p></dd>
       </dl>
       {% if can_change %}
       <details class="edit" style="margin-top:1rem" {% if details_form.errors %}open{% endif %}>
@@ -40,6 +42,7 @@
             {% include "portal/_field.html" with field=details_form.phone_number %}
             {% include "portal/_field.html" with field=details_form.email_address %}
             {% include "portal/_field.html" with field=details_form.staff_member_involved full=1 %}
+            {% include "portal/_field.html" with field=details_form.subject full=1 %}
             {% include "portal/_field.html" with field=details_form.nature_of_complaint full=1 %}
           </div>
           <button class="btn btn-sm" type="submit">Save details</button>
@@ -58,7 +61,7 @@
           {% include "portal/_field.html" with field=handling_form.resolution_date %}
         </div>
         {% include "portal/_field.html" with field=handling_form.remarks %}
-        <p class="muted small" style="margin-top:-.4rem">The resolution date fills in automatically when the complaint is marked Resolved or Closed.</p>
+        <p class="muted small" style="margin-top:-.4rem">The resolution date fills in automatically when the {{ c.noun }} is marked Resolved or Closed.</p>
         <button class="btn btn-sm" type="submit">Save handling details</button>
       </form>
       {% else %}

@@ -25,11 +25,17 @@
   <div class="card kpi">
     <div class="label">Assigned to me</div>
     <div class="value">{{ stats.mine }}</div>
-    <div class="sub">Still open</div>
+    <div class="sub">Open complaints and enquiries</div>
     <a class="stretched" href="{% url 'portal:list' %}?assigned=me&status=open" aria-label="My open complaints"></a>
   </div>
   <div class="card kpi">
-    <div class="label">This month</div>
+    <div class="label">Open enquiries</div>
+    <div class="value">{{ stats.open_enquiries }}</div>
+    <div class="sub">{{ stats.new_enquiries }} new from clients</div>
+    <a class="stretched" href="{% url 'portal:enquiries' %}?status=open" aria-label="Open enquiries"></a>
+  </div>
+  <div class="card kpi">
+    <div class="label">Complaints this month</div>
     <div class="value">{{ stats.received_month }}</div>
     <div class="sub">{{ stats.resolved_month }} resolved{% if stats.avg_days is not None %} · avg {{ stats.avg_days }} days to resolve{% endif %}</div>
   </div>
@@ -37,7 +43,7 @@
 
 <div class="grid g-3">
   <section class="card">
-    <div class="card-head"><h2>Latest complaints</h2><a class="small" href="{% url 'portal:list' %}">See all</a></div>
+    <div class="card-head"><h2>Latest cases</h2><a class="small" href="{% url 'portal:list' %}">See all</a></div>
     <div class="table-wrap">
       <table class="list">
         <thead><tr><th>Reference</th><th>Client</th><th>Received</th><th>Assigned to</th><th>Status</th></tr></thead>
@@ -45,7 +51,7 @@
         {% for c in recent %}
           <tr data-href="{% url 'portal:detail' c.reference %}">
             <td class="ref"><a href="{% url 'portal:detail' c.reference %}">{{ c.reference }}</a></td>
-            <td>{{ c.client_name }}<div class="muted small">{{ c.get_source_display }}</div></td>
+            <td>{{ c.client_name }}<div class="muted small">{{ c.noun_title }} · {{ c.get_source_display }}</div></td>
             <td class="small">{{ c.date_received|date:"j M Y, H:i" }}</td>
             <td class="small">{% if c.assigned_to %}{{ c.assigned_to.get_full_name|default:c.assigned_to.username }}{% else %}<span class="muted">Unassigned</span>{% endif %}</td>
             <td>{% include "portal/_status.html" %}</td>
@@ -60,7 +66,7 @@
 
   <div class="stack">
     <section class="card card-pad">
-      <h2 style="margin-bottom:1rem">By status</h2>
+      <h2 style="margin-bottom:1rem">Complaints by status</h2>
       <div class="bars">
         {% for s in by_status %}
         <a class="bar-row" href="{% url 'portal:list' %}?status={{ s.key }}">
@@ -92,16 +98,16 @@
 </div>
 
 <section class="card" style="margin-top:1.2rem">
-  <div class="card-head"><h2>My open complaints</h2><a class="small" href="{% url 'portal:list' %}?assigned=me&status=open">See all</a></div>
+  <div class="card-head"><h2>My open cases</h2><a class="small" href="{% url 'portal:list' %}?assigned=me&status=open">See all</a></div>
   <div class="table-wrap">
     <table class="list">
-      <thead><tr><th>Reference</th><th>Client</th><th>Nature of the complaint</th><th>Days open</th><th>Status</th></tr></thead>
+      <thead><tr><th>Reference</th><th>Client</th><th>Details</th><th>Days open</th><th>Status</th></tr></thead>
       <tbody>
       {% for c in my_open %}
         <tr data-href="{% url 'portal:detail' c.reference %}">
           <td class="ref"><a href="{% url 'portal:detail' c.reference %}">{{ c.reference }}</a></td>
           <td>{{ c.client_name }}</td>
-          <td class="clip">{{ c.nature_of_complaint|truncatechars:90 }}</td>
+          <td class="clip"><span class="tag">{{ c.noun_title }}</span> {{ c.subject|default:c.nature_of_complaint|truncatechars:90 }}</td>
           <td>{{ c.days_open }}</td>
           <td>{% include "portal/_status.html" %}</td>
         </tr>

@@ -1,14 +1,14 @@
 {% extends "portal/base.html" %}
-{% block title %}Complaints{% endblock %}
+{% block title %}{{ list_title }}{% endblock %}
 {% block content %}
 <div class="page-head">
   <div>
-    <p class="eyebrow">Complaints register</p>
-    <h1>Complaints</h1>
+    <p class="eyebrow">{% if is_enquiry %}Client questions{% else %}Complaints register{% endif %}</p>
+    <h1>{{ list_title }}</h1>
   </div>
   <div style="display:flex;gap:.6rem">
-    <a class="btn btn-ghost" href="{% url 'portal:export' %}{% if querystring %}?{{ querystring }}{% endif %}">Export to Excel</a>
-    {% if perms.complaints.add_complaint %}<a class="btn" href="{% url 'portal:new' %}">+ Log a complaint</a>{% endif %}
+    <a class="btn btn-ghost" href="{% url 'portal:export' %}?{{ export_querystring }}">Export to Excel</a>
+    {% if perms.complaints.add_complaint %}<a class="btn" href="{% url 'portal:new' %}?type={{ case_type }}">+ Log {% if is_enquiry %}an enquiry{% else %}a complaint{% endif %}</a>{% endif %}
   </div>
 </div>
 
@@ -53,14 +53,14 @@
     </div>
     <div class="actions">
       <button class="btn" type="submit">Filter</button>
-      <a class="btn btn-ghost" href="{% url 'portal:list' %}">Reset</a>
+      <a class="btn btn-ghost" href="{{ list_url }}">Reset</a>
     </div>
   </form>
 
   <div class="table-wrap">
     <table class="list">
       <thead>
-        <tr><th>Reference</th><th>Date received</th><th>Client</th><th>Nature of the complaint</th><th>Staff involved</th><th>Assigned to</th><th>Status</th><th>Days open</th></tr>
+        <tr><th>Reference</th><th>Date received</th><th>Client</th><th>{% if is_enquiry %}Question{% else %}Nature of the complaint{% endif %}</th><th>{% if is_enquiry %}Email{% else %}Staff involved{% endif %}</th><th>Assigned to</th><th>Status</th><th>Days open</th></tr>
       </thead>
       <tbody>
       {% for c in page %}
@@ -68,21 +68,21 @@
           <td class="ref"><a href="{% url 'portal:detail' c.reference %}">{{ c.reference }}</a><div class="muted small">{{ c.get_source_display }}</div></td>
           <td class="small" style="white-space:nowrap">{{ c.date_received|date:"j M Y" }}<div class="muted">{{ c.date_received|date:"H:i" }}</div></td>
           <td>{{ c.client_name }}<div class="muted small">{{ c.phone_number }}</div></td>
-          <td class="clip">{{ c.nature_of_complaint|truncatechars:110 }}</td>
-          <td class="small">{{ c.staff_member_involved|default:"—" }}</td>
+          <td class="clip">{% if c.subject %}<strong style="color:var(--ink)">{{ c.subject }}</strong><br>{% endif %}{{ c.nature_of_complaint|truncatechars:110 }}</td>
+          <td class="small">{% if is_enquiry %}{{ c.email_address|default:"—" }}{% else %}{{ c.staff_member_involved|default:"—" }}{% endif %}</td>
           <td class="small">{% if c.assigned_to %}{{ c.assigned_to.get_full_name|default:c.assigned_to.username }}{% else %}<span class="muted">Unassigned</span>{% endif %}</td>
           <td>{% include "portal/_status.html" %}</td>
           <td>{{ c.days_open }}</td>
         </tr>
       {% empty %}
-        <tr><td colspan="8" class="empty">No complaints match these filters.</td></tr>
+        <tr><td colspan="8" class="empty">No {{ list_title|lower }} match these filters.</td></tr>
       {% endfor %}
       </tbody>
     </table>
   </div>
 
   <div class="pager">
-    <span class="muted">{{ total }} complaint{{ total|pluralize }}{% if page.paginator.num_pages > 1 %} · page {{ page.number }} of {{ page.paginator.num_pages }}{% endif %}</span>
+    <span class="muted">{{ total }} {% if is_enquiry %}enquir{{ total|pluralize:"y,ies" }}{% else %}complaint{{ total|pluralize }}{% endif %}{% if page.paginator.num_pages > 1 %} · page {{ page.number }} of {{ page.paginator.num_pages }}{% endif %}</span>
     <span class="links">
       {% if page.has_previous %}<a class="btn btn-ghost btn-sm" href="?{% if querystring %}{{ querystring }}&{% endif %}page={{ page.previous_page_number }}">Previous</a>{% endif %}
       {% if page.has_next %}<a class="btn btn-ghost btn-sm" href="?{% if querystring %}{{ querystring }}&{% endif %}page={{ page.next_page_number }}">Next</a>{% endif %}

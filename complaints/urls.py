@@ -8,6 +8,7 @@ urlpatterns = [
     path("", views.dashboard, name="dashboard"),
     path("complaints/", views.complaint_list, name="list"),
     path("complaints/new/", views.complaint_new, name="new"),
+    path("enquiries/", views.enquiry_list, name="enquiries"),
     path("complaints/export.csv", views.export_csv, name="export"),
     path("complaints/<str:reference>/", views.complaint_detail, name="detail"),
     path("complaints/<str:reference>/conversation/", views.conversation, name="conversation"),

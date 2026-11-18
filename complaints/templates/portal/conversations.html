@@ -27,6 +27,7 @@
           </div>
           <div class="convo-snippet"><span class="muted">{% if r.waiting %}{{ r.who }}:{% else %}You{% if r.last.actor_id != user.pk %} ({{ r.who }}){% endif %}:{% endif %}</span> {{ r.snippet|truncatechars:120 }}</div>
           <div class="convo-tags">
+            <span class="tag">{{ r.c.noun_title }}</span>
             {% include "portal/_status.html" with c=r.c %}
             {% if r.waiting %}<span class="tag tag-wait">Client replied – waiting for us</span>{% endif %}
             <span class="muted small">{{ r.count }} message{{ r.count|pluralize }}{% if r.c.assigned_to %} · {{ r.c.assigned_to.get_full_name|default:r.c.assigned_to.username }}{% endif %}</span>

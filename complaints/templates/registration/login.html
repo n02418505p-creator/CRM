@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <script>try{var t=localStorage.getItem("mmc-theme")||(window.matchMedia&&matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.setAttribute("data-theme",t);}catch(e){}</script>
-  <title>Sign in · MMC Complaints Portal</title>
+  <title>Sign in · MMC CRM</title>
   <link rel="icon" type="image/png" sizes="32x32" href="{{ brand_icon_base }}favicon-32x32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="{{ brand_icon_base }}favicon-16x16.png">
   <link rel="shortcut icon" href="{{ brand_icon_base }}favicon.ico">
@@ -20,16 +20,16 @@
   <section class="login-hero">
     <span class="logo"><img src="{{ brand_logo_url }}" alt="MMC Capital"></span>
     <div>
-      <p class="eyebrow">Complaints Portal</p>
-      <h1>Every client complaint, handled properly.</h1>
-      <p>Track, assign and resolve client complaints in one place, with a full record of every action taken.</p>
+      <p class="eyebrow">MMC CRM</p>
+      <h1>Every client complaint and question, handled properly.</h1>
+      <p>Track, assign and resolve client complaints and enquiries in one place, with every conversation on record.</p>
     </div>
     <p class="small" style="color:#9FB0D6">MMC Capital · Staff access only</p>
   </section>
   <section class="login-panel">
     <div class="login-card">
       <h2>Sign in</h2>
-      <p class="muted" style="margin:0 0 1.4rem">Use your complaints portal account.</p>
+      <p class="muted" style="margin:0 0 1.4rem">Use your MMC CRM account.</p>
       {% if form.errors %}
       <ul class="messages" style="margin:0 0 1rem"><li class="error">Your username and password didn't match. Please try again.</li></ul>
       {% endif %}
@@ -41,7 +41,13 @@
         </div>
         <div class="field">
           <label for="id_password">Password</label>
-          <input type="password" name="password" id="id_password" autocomplete="current-password" required>
+          <div class="pw-wrap">
+            <input type="password" name="password" id="id_password" autocomplete="current-password" required>
+            <button type="button" class="pw-toggle" id="pwToggle" aria-label="Show password" aria-pressed="false" title="Show password">
+              <svg class="eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+              <svg class="eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M3 3l18 18"/><path d="M10.6 5.1A10.7 10.7 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3 3.9M6.6 6.6C3.8 8.4 2 12 2 12s3.6 7 10 7c1.8 0 3.3-.5 4.6-1.2"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>
+            </button>
+          </div>
         </div>
         <button class="btn" type="submit">Sign in</button>
       </form>
@@ -49,5 +55,18 @@
     </div>
   </section>
 </div>
+<script>
+(function () {
+  var input = document.getElementById("id_password"), btn = document.getElementById("pwToggle");
+  btn.addEventListener("click", function () {
+    var show = input.type === "password";
+    input.type = show ? "text" : "password";
+    btn.setAttribute("aria-pressed", String(show));
+    btn.setAttribute("aria-label", show ? "Hide password" : "Show password");
+    btn.title = show ? "Hide password" : "Show password";
+    input.focus();
+  });
+})();
+</script>
 </body>
 </html>

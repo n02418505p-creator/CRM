@@ -42,11 +42,12 @@ def notify(users, complaint, kind, message, exclude=None):
 
 def record_new(complaint, actor=None):
     source = complaint.get_source_display()
+    noun = complaint.noun_title
     if actor is None:
-        log(complaint, ComplaintEvent.Kind.CREATED, f"Complaint received via {source}.")
+        log(complaint, ComplaintEvent.Kind.CREATED, f"{noun} received via {source}.")
     else:
-        log(complaint, ComplaintEvent.Kind.CREATED, f"Complaint logged by {display_name(actor)} ({source}).", actor)
-    notify(handlers(), complaint, "new", f"New complaint from {complaint.client_name} ({complaint.reference})", exclude=actor)
+        log(complaint, ComplaintEvent.Kind.CREATED, f"{noun} logged by {display_name(actor)} ({source}).", actor)
+    notify(handlers(), complaint, "new", f"New {complaint.noun} from {complaint.client_name} ({complaint.reference})", exclude=actor)
     if complaint.assigned_to and (actor is None or complaint.assigned_to.pk != actor.pk):
         notify([complaint.assigned_to], complaint, "assigned", f"You were assigned {complaint.reference} – {complaint.client_name}")
 
@@ -137,9 +138,9 @@ def email_client(complaint, message, actor, acknowledgement=False):
         },
     )
     subject = (
-        f"We've received your complaint – reference {complaint.reference}"
+        f"We've received your {complaint.noun} – reference {complaint.reference}"
         if acknowledgement
-        else f"Update on your complaint {complaint.reference} – MMC Capital"
+        else f"Update on your {complaint.noun} {complaint.reference} – MMC Capital"
     )
     email = EmailMessage(subject, body, to=[complaint.email_address], reply_to=settings.COMPLAINTS_REPLY_TO)
     try:
@@ -154,27 +155,31 @@ def email_client(complaint, message, actor, acknowledgement=False):
 
 
 def status_message(complaint, note=""):
+    n = complaint.noun
     texts = {
-        Complaint.Status.NEW: "Your complaint has been received and is waiting to be reviewed.",
-        Complaint.Status.IN_PROGRESS: "Your complaint is being reviewed by our team.",
-        Complaint.Status.RESOLVED: "Your complaint has been resolved.",
-        Complaint.Status.CLOSED: "Your complaint has been closed.",
+        Complaint.Status.NEW: f"Your {n} has been received and is waiting to be reviewed.",
+        Complaint.Status.IN_PROGRESS: f"Your {n} is being looked into by our team.",
+        Complaint.Status.RESOLVED: f"Your {n} has been resolved.",
+        Complaint.Status.CLOSED: f"Your {n} has been closed.",
     }
-    text = texts.get(complaint.status, f"Your complaint is now {complaint.get_status_display()}.")
+    text = texts.get(complaint.status, f"Your {n} is now {complaint.get_status_display()}.")
     return text + (f"\n\n{note}" if note else "")
 
 
 def assignment_message(complaint):
     return (
-        f"Your complaint has been assigned to {handler_name(complaint)}, "
-        "who will be in touch with you to resolve it."
+        f"Your {complaint.noun} has been assigned to {handler_name(complaint)}, "
+        "who will be in touch with you."
     )
 
 
-ACKNOWLEDGEMENT_MESSAGE = (
-    "Your complaint has been logged in our complaints register. "
-    "We will review it and keep you updated on progress by email."
-)
+def acknowledgement_message(complaint):
+    if complaint.is_enquiry:
+        return "Your enquiry has been logged and a member of our team will get back to you by email."
+    return (
+        "Your complaint has been logged in our complaints register. "
+        "We will review it and keep you updated on progress by email."
+    )
 
 
 # ---------------------------------------------------------------------------

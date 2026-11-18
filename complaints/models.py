@@ -6,7 +6,8 @@ from django.db import models
 from django.utils import timezone
 
 REFERENCE_PATTERN = re.compile(r"^CMP-\d{8}-[0-9A-F]{6}$")
-REFERENCE_SEARCH = re.compile(r"CMP-\d{8}-[0-9A-F]{6}", re.IGNORECASE)
+ENQUIRY_REFERENCE_PATTERN = re.compile(r"^ENQ-\d{8}-[0-9A-F]{6}$")
+REFERENCE_SEARCH = re.compile(r"(?:CMP|ENQ)-\d{8}-[0-9A-F]{6}", re.IGNORECASE)
 
 
 def generate_reference():
@@ -14,8 +15,17 @@ def generate_reference():
     return f"CMP-{timezone.localdate():%Y%m%d}-{secrets.token_hex(3).upper()}"
 
 
+def generate_enquiry_reference():
+    """e.g. ENQ-20261118-7F3A9C"""
+    return "ENQ-" + generate_reference()[4:]
+
+
 class Complaint(models.Model):
-    """One row of the complaints register."""
+    """One case in the CRM: a complaint, or an enquiry (a client question)."""
+
+    class CaseType(models.TextChoices):
+        COMPLAINT = "complaint", "Complaint"
+        ENQUIRY = "enquiry", "Enquiry"
 
     class Status(models.TextChoices):
         NEW = "new", "New"
@@ -30,11 +40,13 @@ class Complaint(models.Model):
         IN_PERSON = "in_person", "In person"
         OTHER = "other", "Other"
 
+    case_type = models.CharField("type", max_length=20, choices=CaseType.choices, default=CaseType.COMPLAINT, db_index=True)
     reference = models.CharField(max_length=32, unique=True, default=generate_reference, editable=False)
     date_received = models.DateTimeField("date received", default=timezone.now, db_index=True)
     client_name = models.CharField("client name", max_length=150)
-    phone_number = models.CharField("phone number", max_length=40)
+    phone_number = models.CharField("phone number", max_length=40, blank=True)
     email_address = models.EmailField("email address", blank=True)
+    subject = models.CharField(max_length=200, blank=True)
     nature_of_complaint = models.TextField("nature of the complaint")
     staff_member_involved = models.CharField("staff member involved", max_length=150, blank=True)
     action_taken = models.TextField("action taken", blank=True)
@@ -62,6 +74,22 @@ class Complaint(models.Model):
         return f"{self.reference} – {self.client_name}"
 
     @property
+    def is_enquiry(self):
+        return self.case_type == self.CaseType.ENQUIRY
+
+    @property
+    def noun(self):
+        return "enquiry" if self.is_enquiry else "complaint"
+
+    @property
+    def noun_title(self):
+        return self.noun.capitalize()
+
+    @property
+    def details_label(self):
+        return "Message" if self.is_enquiry else "Nature of the complaint"
+
+    @property
     def is_open(self):
         return self.status in (self.Status.NEW, self.Status.IN_PROGRESS)
 
@@ -77,6 +105,8 @@ class Complaint(models.Model):
         return self.is_open and (self.days_open() or 0) > settings.COMPLAINT_TARGET_DAYS
 
     def save(self, *args, **kwargs):
+        if self.is_enquiry and self._state.adding and self.reference.startswith("CMP-"):
+            self.reference = "ENQ-" + self.reference[4:]
         # Stamp the resolution date automatically when a complaint is resolved/closed.
         if not self.is_open and self.resolution_date is None:
             self.resolution_date = timezone.localdate()

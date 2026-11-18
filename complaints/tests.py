@@ -152,6 +152,7 @@ class PortalTests(TestCase):
 
     def test_log_new_complaint(self):
         resp = self.client.post("/complaints/new/", {
+            "case_type": "complaint",
             "date_received": timezone.localtime().strftime("%Y-%m-%dT%H:%M"),
             "source": "phone", "client_name": "Walk In", "phone_number": "0771111111",
             "email_address": "", "nature_of_complaint": "Long wait at reception.",
@@ -229,6 +230,7 @@ class ClientEmailTests(TestCase):
 
     def test_acknowledgement_for_logged_complaint(self):
         self.client.post("/complaints/new/", {
+            "case_type": "complaint",
             "date_received": timezone.localtime().strftime("%Y-%m-%dT%H:%M"), "source": "phone",
             "client_name": "Caller", "phone_number": "0771111111", "email_address": "caller@example.com",
             "nature_of_complaint": "Could not reach my broker.", "staff_member_involved": "",
@@ -323,6 +325,74 @@ class ConversationTests(TestCase):
         self.assertEqual(self.client.get("/complaints/?assigned=me&status=open").context["nav"], "mine")
         self.assertEqual(self.client.get("/complaints/").context["nav"], "list")
         self.assertEqual(self.client.get(self.url).context["nav"], "conversations")
+
+
+@override_settings(COMPLAINTS_API_KEY=API_KEY)
+class EnquiryTests(TestCase):
+    PAYLOAD = {
+        "reference": "ENQ-20261118-ABC123",
+        "submitted_at": "2026-11-18T11:30:00+02:00",
+        "client_name": "Rudo",
+        "email_address": "rudo@example.com",
+        "subject": "Opening a trading account",
+        "message": "How do I open a CDS account?",
+    }
+
+    def post(self, data, url="/api/enquiries/"):
+        return self.client.post(url, data=json.dumps(data), content_type="application/json", HTTP_X_API_KEY=API_KEY)
+
+    def test_enquiry_from_contact_form(self):
+        handler = make_handler("thapelo")
+        resp = self.post(self.PAYLOAD)
+        self.assertEqual(resp.status_code, 201)
+        e = Complaint.objects.get()
+        self.assertEqual(e.case_type, "enquiry")
+        self.assertEqual(e.reference, "ENQ-20261118-ABC123")
+        self.assertEqual(e.subject, "Opening a trading account")
+        self.assertTrue(Notification.objects.filter(recipient=handler, message__startswith="New enquiry").exists())
+        self.assertEqual(self.post(self.PAYLOAD).status_code, 200)  # resend is not duplicated
+        self.assertEqual(Complaint.objects.count(), 1)
+
+    def test_enquiry_validation(self):
+        resp = self.post({"client_name": "", "email_address": "bad", "message": ""})
+        self.assertEqual(set(resp.json()["errors"]), {"client_name", "email_address", "message"})
+
+    def test_lists_are_separate_and_reply_matches(self):
+        self.post(self.PAYLOAD)
+        Complaint.objects.create(client_name="Complainer", phone_number="1", nature_of_complaint="x")
+        user = make_handler("monalisa")
+        self.client.force_login(user)
+        enquiries = self.client.get("/enquiries/")
+        self.assertContains(enquiries, "Rudo")
+        self.assertNotContains(enquiries, "Complainer")
+        self.assertEqual(enquiries.context["nav"], "enquiries")
+        self.assertNotContains(self.client.get("/complaints/"), "Rudo")
+        detail = self.client.get("/complaints/ENQ-20261118-ABC123/")
+        self.assertContains(detail, "How do I open a CDS account?")
+        self.assertEqual(detail.context["nav"], "enquiries")
+        self.client.post("/complaints/ENQ-20261118-ABC123/conversation/", {"message": "Here is how."})
+        self.assertIn("Update on your enquiry ENQ-20261118-ABC123", mail.outbox[-1].subject)
+        self.post({"from_email": "rudo@example.com", "subject": "Re: Update on your enquiry ENQ-20261118-ABC123",
+                   "text": "Thanks!", "message_id": "<e1>"}, url="/api/complaints/inbound/")
+        self.assertTrue(Complaint.objects.get(reference="ENQ-20261118-ABC123").events.filter(kind="reply").exists())
+        self.assertIn("enquiries-register", self.client.get("/complaints/export.csv?type=enquiry")["Content-Disposition"])
+
+    def test_log_enquiry_in_portal_without_phone(self):
+        user = make_handler("monalisa")
+        self.client.force_login(user)
+        self.client.post("/complaints/new/", {
+            "case_type": "enquiry", "date_received": timezone.localtime().strftime("%Y-%m-%dT%H:%M"),
+            "source": "email", "client_name": "Asker", "phone_number": "", "email_address": "ask@example.com",
+            "subject": "Fees", "nature_of_complaint": "What are your fees?", "staff_member_involved": "", "assigned_to": "",
+        })
+        e = Complaint.objects.get(client_name="Asker")
+        self.assertTrue(e.reference.startswith("ENQ-"))
+
+    def test_login_page_has_password_toggle(self):
+        resp = self.client.get("/login/")
+        self.assertContains(resp, 'type="password"')
+        self.assertContains(resp, 'id="pwToggle"')
+        self.assertContains(resp, "MMC CRM")
 
 
 class AdminTests(TestCase):

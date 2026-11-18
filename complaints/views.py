@@ -43,7 +43,9 @@ def _aware(d):
 def dashboard(request):
     today = timezone.localdate()
     month_start = _month_start(today)
-    qs = Complaint.objects.all()
+    everything = Complaint.objects.all()
+    qs = everything.filter(case_type=Complaint.CaseType.COMPLAINT)
+    enquiries = everything.filter(case_type=Complaint.CaseType.ENQUIRY)
     open_qs = qs.filter(status__in=OPEN)
     overdue_cutoff = timezone.now() - timedelta(days=settings.COMPLAINT_TARGET_DAYS)
 
@@ -81,7 +83,9 @@ def dashboard(request):
             "open": open_qs.count(),
             "new": qs.filter(status=Complaint.Status.NEW).count(),
             "overdue": open_qs.filter(date_received__lt=overdue_cutoff).count(),
-            "mine": open_qs.filter(assigned_to=request.user).count(),
+            "mine": everything.filter(status__in=OPEN, assigned_to=request.user).count(),
+            "open_enquiries": enquiries.filter(status__in=OPEN).count(),
+            "new_enquiries": enquiries.filter(status=Complaint.Status.NEW).count(),
             "unassigned": open_qs.filter(assigned_to__isnull=True).count(),
             "received_month": qs.filter(date_received__gte=_aware(month_start)).count(),
             "resolved_month": qs.filter(resolution_date__gte=month_start).count(),
@@ -89,14 +93,17 @@ def dashboard(request):
         },
         "by_status": by_status,
         "trend": trend,
-        "recent": qs.select_related("assigned_to")[:8],
-        "my_open": open_qs.filter(assigned_to=request.user).select_related("assigned_to")[:6],
+        "recent": everything.select_related("assigned_to")[:8],
+        "my_open": everything.filter(status__in=OPEN, assigned_to=request.user).select_related("assigned_to")[:6],
     }
     return render(request, "portal/dashboard.html", context)
 
 
-def _filtered(request):
+def _filtered(request, case_type=None):
     qs = Complaint.objects.select_related("assigned_to")
+    case_type = case_type or request.GET.get("type", "")
+    if case_type in Complaint.CaseType.values:
+        qs = qs.filter(case_type=case_type)
     f = {k: request.GET.get(k, "").strip() for k in ("q", "status", "assigned", "source", "from", "to")}
     if f["q"]:
         q = f["q"]
@@ -104,6 +111,7 @@ def _filtered(request):
             Q(reference__icontains=q) | Q(client_name__icontains=q) | Q(phone_number__icontains=q)
             | Q(email_address__icontains=q) | Q(nature_of_complaint__icontains=q)
             | Q(staff_member_involved__icontains=q) | Q(remarks__icontains=q) | Q(action_taken__icontains=q)
+            | Q(subject__icontains=q)
         )
     if f["status"] == "open":
         qs = qs.filter(status__in=OPEN)
@@ -130,23 +138,41 @@ def _filtered(request):
     return qs, f
 
 
-@login_required
-@view_required
-def complaint_list(request):
-    qs, filters = _filtered(request)
+def _case_list(request, case_type):
+    qs, filters = _filtered(request, case_type)
     page = Paginator(qs, 25).get_page(request.GET.get("page"))
     params = request.GET.copy()
     params.pop("page", None)
+    export_params = params.copy()
+    export_params["type"] = case_type
+    is_enquiry = case_type == Complaint.CaseType.ENQUIRY
     context = {
         "page": page,
         "filters": filters,
         "querystring": params.urlencode(),
+        "export_querystring": export_params.urlencode(),
         "statuses": Complaint.Status.choices,
         "sources": Complaint.Source.choices,
         "staff": services.handlers(),
         "total": page.paginator.count,
+        "case_type": case_type,
+        "is_enquiry": is_enquiry,
+        "list_title": "Enquiries" if is_enquiry else "Complaints",
+        "list_url": reverse("portal:enquiries" if is_enquiry else "portal:list"),
     }
     return render(request, "portal/complaint_list.html", context)
+
+
+@login_required
+@view_required
+def complaint_list(request):
+    return _case_list(request, Complaint.CaseType.COMPLAINT)
+
+
+@login_required
+@view_required
+def enquiry_list(request):
+    return _case_list(request, Complaint.CaseType.ENQUIRY)
 
 
 @login_required
@@ -154,7 +180,8 @@ def complaint_list(request):
 def export_csv(request):
     qs, _ = _filtered(request)
     response = HttpResponse(content_type="text/csv; charset=utf-8")
-    response["Content-Disposition"] = f'attachment; filename="complaints-register-{timezone.localdate():%Y-%m-%d}.csv"'
+    kind = "enquiries" if request.GET.get("type") == "enquiry" else "complaints"
+    response["Content-Disposition"] = f'attachment; filename="{kind}-register-{timezone.localdate():%Y-%m-%d}.csv"'
     response.write("﻿")
     writer = csv.writer(response)
     writer.writerow([name for name, _ in EXPORT_COLUMNS])
@@ -175,13 +202,14 @@ def _email_client(request, complaint, message, acknowledgement=False):
 @login_required
 @permission_required("complaints.add_complaint", raise_exception=True)
 def complaint_new(request):
-    form = ComplaintCreateForm(request.POST or None)
+    initial = {"case_type": request.GET.get("type")} if request.GET.get("type") in Complaint.CaseType.values else {}
+    form = ComplaintCreateForm(request.POST or None, initial=initial)
     if request.method == "POST" and form.is_valid():
         complaint = form.save()
         services.record_new(complaint, actor=request.user)
-        messages.success(request, f"Complaint {complaint.reference} has been logged.")
+        messages.success(request, f"{complaint.noun_title} {complaint.reference} has been logged.")
         if request.POST.get("send_acknowledgement") == "yes" and complaint.email_address:
-            _email_client(request, complaint, services.ACKNOWLEDGEMENT_MESSAGE, acknowledgement=True)
+            _email_client(request, complaint, services.acknowledgement_message(complaint), acknowledgement=True)
         return redirect("portal:detail", reference=complaint.reference)
     return render(request, "portal/complaint_form.html", {"form": form})
 
@@ -254,6 +282,7 @@ def complaint_detail(request, reference):
         "details_form": details_form,
         "statuses": Complaint.Status.choices,
         "staff": services.handlers(),
+        "nav": "enquiries" if complaint.is_enquiry else "list",
     }
     return render(request, "portal/complaint_detail.html", context)
 
@@ -328,7 +357,8 @@ def conversation(request, reference):
             "who": complaint.client_name,
             "when": complaint.date_received,
             "text": complaint.nature_of_complaint,
-            "label": f"Complaint received via {complaint.get_source_display()}",
+            "label": (f"{complaint.noun_title} received via {complaint.get_source_display()}"
+                      + (f" · {complaint.subject}" if complaint.subject else "")),
         }
     ]
     for e in messages_qs:

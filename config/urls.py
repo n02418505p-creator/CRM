@@ -14,6 +14,7 @@ urlpatterns = [
     path("healthz", healthz),
     path("api/complaints/", api.create_complaint, name="api-create-complaint"),
     path("api/complaints/inbound/", api.inbound_reply, name="api-inbound-reply"),
+    path("api/enquiries/", api.create_enquiry, name="api-create-enquiry"),
     path(
         "login/",
         auth_views.LoginView.as_view(template_name="registration/login.html", redirect_authenticated_user=True),

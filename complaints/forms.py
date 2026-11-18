@@ -20,15 +20,18 @@ class ComplaintCreateForm(forms.ModelForm):
     class Meta:
         model = Complaint
         fields = [
+            "case_type",
             "date_received",
             "source",
             "client_name",
             "phone_number",
             "email_address",
+            "subject",
             "nature_of_complaint",
             "staff_member_involved",
             "assigned_to",
         ]
+        labels = {"nature_of_complaint": "Details", "case_type": "This is a"}
         widgets = {
             "date_received": forms.DateTimeInput(attrs={"type": "datetime-local"}, format=DATETIME_FORMAT),
             "nature_of_complaint": forms.Textarea(attrs={"rows": 6}),
@@ -39,6 +42,14 @@ class ComplaintCreateForm(forms.ModelForm):
         self.fields["assigned_to"].queryset = services.handlers()
         self.fields["date_received"].input_formats = [DATETIME_FORMAT, "%Y-%m-%d %H:%M"]
         self.fields["source"].choices = [c for c in Complaint.Source.choices if c[0] != Complaint.Source.WEBSITE]
+
+    def clean(self):
+        data = super().clean()
+        if data.get("case_type") == Complaint.CaseType.COMPLAINT and not data.get("phone_number"):
+            self.add_error("phone_number", "A phone number is needed for complaints.")
+        if not data.get("phone_number") and not data.get("email_address"):
+            self.add_error("email_address", "Give at least a phone number or an email address.")
+        return data
         if not self.is_bound:
             self.initial.setdefault("date_received", timezone.localtime().strftime(DATETIME_FORMAT))
             self.initial.setdefault("source", Complaint.Source.PHONE)
@@ -58,5 +69,6 @@ class HandlingForm(forms.ModelForm):
 class DetailsForm(forms.ModelForm):
     class Meta:
         model = Complaint
-        fields = ["client_name", "phone_number", "email_address", "nature_of_complaint", "staff_member_involved"]
+        fields = ["client_name", "phone_number", "email_address", "subject", "nature_of_complaint", "staff_member_involved"]
         widgets = {"nature_of_complaint": forms.Textarea(attrs={"rows": 5})}
+        labels = {"nature_of_complaint": "Details"}
