@@ -272,7 +272,7 @@ class ClientReplyTests(TestCase):
         self.post(from_email="tendai@example.com", subject=f"Re: {self.c.reference}", text="Please call me.", message_id="<1@x>")
         self.client.force_login(self.handler)
         url = reverse("portal:detail", args=[self.c.reference])
-        self.assertContains(self.client.get(url), "Please call me.")
+        self.assertContains(self.client.get(reverse("portal:conversation", args=[self.c.reference])), "Please call me.")
         self.client.post(url, {"action": "client", "message": "We will call you today."})
         self.assertIn("(your reply)", mail.outbox[-1].body)
         self.assertIn("Please call me.", mail.outbox[-1].body)
