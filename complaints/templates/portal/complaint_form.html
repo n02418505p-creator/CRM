@@ -1,5 +1,29 @@
 {% extends "portal/base.html" %}
-{% block title %}Log a case{% endblock %}
+{% block title %}Log a case{{ service_descriptions|json_script:"serviceDescriptions" }}
+<script>
+(function () {
+  var type = document.getElementById("{{ form.case_type.id_for_label }}");
+  var service = document.getElementById("{{ form.service.id_for_label }}");
+  var descriptions = JSON.parse(document.getElementById("serviceDescriptions").textContent);
+  var about = document.getElementById("serviceAbout");
+  function toggle() {
+    var enquiry = type && type.value === "enquiry";
+    document.querySelectorAll(".enquiry-only").forEach(function (el) { el.hidden = !enquiry; });
+    document.querySelectorAll(".complaint-only").forEach(function (el) { el.hidden = enquiry; });
+  }
+  function describe() {
+    var name = service ? service.value : "";
+    var desc = descriptions[name] || "";
+    about.hidden = !name;
+    document.getElementById("serviceName").textContent = name;
+    document.getElementById("serviceDesc").textContent = desc;
+    document.getElementById("serviceDesc").hidden = !desc;
+  }
+  if (type) { type.addEventListener("change", toggle); toggle(); }
+  if (service) { service.addEventListener("change", describe); describe(); }
+})();
+</script>
+{% endblock %}
 {% block content %}
 <div class="page-head">
   <div>
@@ -23,12 +47,25 @@
       {% include "portal/_field.html" with field=form.client_name full=1 %}
       {% include "portal/_field.html" with field=form.phone_number %}
       {% include "portal/_field.html" with field=form.email_address %}
+      <div class="full enquiry-only">{% include "portal/_field.html" with field=form.organisation %}</div>
+    </div>
+    <div class="enquiry-only">
+      <p class="eyebrow">What the enquiry is about</p>
+      <div class="form-grid">
+        {% include "portal/_field.html" with field=form.service %}
+        {% include "portal/_field.html" with field=form.enquiry_type %}
+        <div class="full about-card about-preview" id="serviceAbout" hidden>
+          <p class="eyebrow">The service</p>
+          <h3 id="serviceName"></h3>
+          <p class="about-desc" id="serviceDesc"></p>
+        </div>
+      </div>
     </div>
     <p class="eyebrow">Details</p>
     <div class="form-grid">
       {% include "portal/_field.html" with field=form.subject full=1 %}
       {% include "portal/_field.html" with field=form.nature_of_complaint full=1 %}
-      {% include "portal/_field.html" with field=form.staff_member_involved %}
+      <div class="complaint-only">{% include "portal/_field.html" with field=form.staff_member_involved %}</div>
       {% include "portal/_field.html" with field=form.assigned_to %}
     </div>
     <label class="check" style="margin-bottom:1rem"><input type="checkbox" name="send_acknowledgement" value="yes" checked> Email the client a confirmation with their reference number (if an email address is given)</label>

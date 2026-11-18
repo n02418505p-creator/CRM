@@ -397,6 +397,68 @@ class EnquiryTests(TestCase):
         self.assertContains(resp, "MMC CRM")
 
 
+@override_settings(COMPLAINTS_API_KEY=API_KEY)
+class EnquiryDetailTests(TestCase):
+    SERVICE_FORM = {
+        "client_name": "Chipo",
+        "email_address": "chipo@example.com",
+        "subject": "[Advisory service request] Capital Raising",
+        "message": (
+            "Service: Capital Raising\nOrganisation: Acme Holdings\nTelephone: +263 77 123 4567\n"
+            "Page: /advisory-services.html\n\nWe want to raise USD 5m for expansion.\n\nConsent to be contacted: yes"
+        ),
+    }
+
+    def setUp(self):
+        self.user = make_handler("service", group="Client service")
+        self.client.force_login(self.user)
+
+    def post(self, data):
+        return self.client.post("/api/enquiries/", data=json.dumps(data), content_type="application/json", HTTP_X_API_KEY=API_KEY)
+
+    def test_service_request_form_is_unpacked(self):
+        self.post(self.SERVICE_FORM)
+        e = Complaint.objects.get()
+        self.assertEqual(e.enquiry_type, "service")
+        self.assertEqual(e.division, "advisory")
+        self.assertEqual(e.service, "Capital Raising")
+        self.assertEqual(e.organisation, "Acme Holdings")
+        self.assertEqual(e.phone_number, "+263 77 123 4567")
+        self.assertEqual(e.source_page, "/advisory-services.html")
+        self.assertEqual(e.nature_of_complaint, "We want to raise USD 5m for expansion.")
+        self.assertEqual(e.subject, "Service request: Capital Raising")
+        page = self.client.get(reverse("portal:detail", args=[e.reference]))
+        self.assertContains(page, "We structure and facilitate bespoke financing solutions")
+        self.assertContains(page, "Acme Holdings")
+        listing = self.client.get("/enquiries/?service=Capital+Raising&enquiry_type=service")
+        self.assertContains(listing, "Chipo")
+        self.assertNotContains(self.client.get("/enquiries/?service=Securities+Trading"), "Chipo")
+        self.assertContains(self.client.get("/"), "Enquiries by service")
+
+    def test_contact_form_topic(self):
+        self.post({"client_name": "Tino", "email_address": "t@example.com", "subject": "Account",
+                   "message": "How do I start?", "enquiry_about": "stockbroking|Opening a trading account",
+                   "organisation": "Self", "phone_number": "0772"})
+        e = Complaint.objects.get()
+        self.assertEqual((e.division, e.service, e.enquiry_type, e.organisation), ("stockbroking", "Opening a trading account", "service", "Self"))
+
+    def test_plain_contact_message_is_general(self):
+        self.post({"client_name": "Pat", "email_address": "p@example.com", "subject": "Hello", "message": "Question"})
+        self.assertEqual(Complaint.objects.get().enquiry_type, "general")
+
+    def test_log_enquiry_with_service_in_portal(self):
+        self.client.post("/complaints/new/", {
+            "case_type": "enquiry", "date_received": timezone.localtime().strftime("%Y-%m-%dT%H:%M"),
+            "source": "phone", "client_name": "Caller", "phone_number": "0771", "email_address": "",
+            "organisation": "Big Co", "service": "Securities Trading", "enquiry_type": "",
+            "subject": "", "nature_of_complaint": "Wants to buy shares", "staff_member_involved": "", "assigned_to": "",
+        })
+        e = Complaint.objects.get(client_name="Caller")
+        self.assertEqual((e.division, e.enquiry_type, e.organisation), ("stockbroking", "service", "Big Co"))
+        email = self.client.get(reverse("portal:detail", args=[e.reference]))
+        self.assertContains(email, "We provide trade execution")
+
+
 class RoleTests(TestCase):
     def setUp(self):
         self.complaint = Complaint.objects.create(client_name="Complainer", phone_number="1", nature_of_complaint="x")

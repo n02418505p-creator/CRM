@@ -100,6 +100,13 @@ def dashboard(request):
         },
         "by_status": by_status,
         "trend": trend,
+        "enquiries_by_service": list(
+            enquiries.filter(date_received__gte=timezone.now() - timedelta(days=90))
+            .exclude(service="")
+            .values("service")
+            .annotate(n=Count("id"))
+            .order_by("-n")[:6]
+        ),
         "recent": everything.select_related("assigned_to")[:8],
         "my_open": everything.filter(status__in=OPEN, assigned_to=request.user).select_related("assigned_to")[:6],
     }
@@ -111,14 +118,14 @@ def _filtered(request, case_type=None):
     case_type = case_type or request.GET.get("type", "")
     if case_type in Complaint.CaseType.values:
         qs = qs.filter(case_type=case_type)
-    f = {k: request.GET.get(k, "").strip() for k in ("q", "status", "assigned", "source", "from", "to")}
+    f = {k: request.GET.get(k, "").strip() for k in ("q", "status", "assigned", "source", "from", "to", "enquiry_type", "division", "service")}
     if f["q"]:
         q = f["q"]
         qs = qs.filter(
             Q(reference__icontains=q) | Q(client_name__icontains=q) | Q(phone_number__icontains=q)
             | Q(email_address__icontains=q) | Q(nature_of_complaint__icontains=q)
             | Q(staff_member_involved__icontains=q) | Q(remarks__icontains=q) | Q(action_taken__icontains=q)
-            | Q(subject__icontains=q)
+            | Q(subject__icontains=q) | Q(service__icontains=q) | Q(organisation__icontains=q)
         )
     if f["status"] == "open":
         qs = qs.filter(status__in=OPEN)
@@ -134,6 +141,12 @@ def _filtered(request, case_type=None):
         qs = qs.filter(assigned_to_id=int(f["assigned"]))
     if f["source"] in Complaint.Source.values:
         qs = qs.filter(source=f["source"])
+    if f["enquiry_type"] in Complaint.EnquiryType.values:
+        qs = qs.filter(enquiry_type=f["enquiry_type"])
+    if f["division"] in Complaint.Division.values:
+        qs = qs.filter(division=f["division"])
+    if f["service"]:
+        qs = qs.filter(service__iexact=f["service"])
     for key, op in (("from", "gte"), ("to", "lt")):
         try:
             d = date.fromisoformat(f[key])
@@ -167,8 +180,17 @@ def _case_list(request, case_type):
         "is_enquiry": is_enquiry,
         "list_title": "Enquiries" if is_enquiry else "Complaints",
         "list_url": reverse("portal:enquiries" if is_enquiry else "portal:list"),
+        "enquiry_types": Complaint.EnquiryType.choices,
+        "divisions": Complaint.Division.choices,
+        "service_groups": [(label, [name for name, _ in items]) for label, items in _service_groups()],
     }
     return render(request, "portal/complaint_list.html", context)
+
+
+def _service_groups():
+    from .enquiries import DIVISION_LABELS, SERVICES
+
+    return [(DIVISION_LABELS[d], items) for d, items in SERVICES.items()]
 
 
 @login_required
@@ -225,7 +247,10 @@ def complaint_new(request):
         if request.POST.get("send_acknowledgement") == "yes" and complaint.email_address:
             _email_client(request, complaint, services.acknowledgement_message(complaint), acknowledgement=True)
         return redirect("portal:detail", reference=complaint.reference)
-    return render(request, "portal/complaint_form.html", {"form": form})
+    from .enquiries import SERVICES
+
+    descriptions = {name: desc for items in SERVICES.values() for name, desc in items if desc}
+    return render(request, "portal/complaint_form.html", {"form": form, "service_descriptions": descriptions})
 
 
 @login_required

@@ -2,6 +2,7 @@ from django import forms
 from django.utils import timezone
 
 from . import services
+from .enquiries import service_choices, service_info
 from .models import Complaint
 
 DATETIME_FORMAT = "%Y-%m-%dT%H:%M"
@@ -12,8 +13,36 @@ class StaffChoiceField(forms.ModelChoiceField):
         return services.display_name(obj)
 
 
-class ComplaintCreateForm(forms.ModelForm):
-    """Used by staff to log a complaint received by phone, email or in person."""
+def _service_field(current=""):
+    choices = service_choices()
+    if current and not service_info(current):
+        choices.append(("Other", [(current, current)]))
+    return forms.ChoiceField(choices=choices, required=False, label="Service or topic")
+
+
+class EnquiryFieldsMixin:
+    """Service, organisation and enquiry type for enquiries."""
+
+    def _setup_enquiry_fields(self):
+        current = self.instance.service if self.instance and self.instance.pk else ""
+        self.fields["service"] = _service_field(current)
+        self.fields["enquiry_type"].required = False
+        self.fields["enquiry_type"].choices = [("", "Work out from the service")] + list(Complaint.EnquiryType.choices)
+        self.fields["organisation"].required = False
+
+    def save(self, commit=True):
+        obj = super().save(commit=False)
+        if obj.case_type == Complaint.CaseType.ENQUIRY:
+            obj.apply_service()
+        else:
+            obj.enquiry_type = obj.division = obj.service = obj.organisation = ""
+        if commit:
+            obj.save()
+        return obj
+
+
+class ComplaintCreateForm(EnquiryFieldsMixin, forms.ModelForm):
+    """Used by staff to log a complaint or enquiry received by phone, email or in person."""
 
     assigned_to = StaffChoiceField(queryset=None, required=False, empty_label="Unassigned", label="Assign to")
 
@@ -26,12 +55,15 @@ class ComplaintCreateForm(forms.ModelForm):
             "client_name",
             "phone_number",
             "email_address",
+            "organisation",
+            "enquiry_type",
+            "service",
             "subject",
             "nature_of_complaint",
             "staff_member_involved",
             "assigned_to",
         ]
-        labels = {"nature_of_complaint": "Details", "case_type": "This is a"}
+        labels = {"nature_of_complaint": "Details / how can we help?", "case_type": "This is a"}
         widgets = {
             "date_received": forms.DateTimeInput(attrs={"type": "datetime-local"}, format=DATETIME_FORMAT),
             "nature_of_complaint": forms.Textarea(attrs={"rows": 6}),
@@ -39,6 +71,7 @@ class ComplaintCreateForm(forms.ModelForm):
 
     def __init__(self, *args, allowed_types=None, **kwargs):
         super().__init__(*args, **kwargs)
+        self._setup_enquiry_fields()
         allowed_types = allowed_types or list(Complaint.CaseType.values)
         self.fields["case_type"].choices = [c for c in Complaint.CaseType.choices if c[0] in allowed_types]
         # Only people who can work on this type of case can be assigned it.
@@ -70,9 +103,16 @@ class HandlingForm(forms.ModelForm):
         }
 
 
-class DetailsForm(forms.ModelForm):
+class DetailsForm(EnquiryFieldsMixin, forms.ModelForm):
     class Meta:
         model = Complaint
-        fields = ["client_name", "phone_number", "email_address", "subject", "nature_of_complaint", "staff_member_involved"]
+        fields = [
+            "client_name", "phone_number", "email_address", "organisation", "enquiry_type", "service",
+            "subject", "nature_of_complaint", "staff_member_involved",
+        ]
         widgets = {"nature_of_complaint": forms.Textarea(attrs={"rows": 5})}
         labels = {"nature_of_complaint": "Details"}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._setup_enquiry_fields()

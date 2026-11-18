@@ -83,6 +83,21 @@
         {% endfor %}
       </div>
     </section>
+    {% if can_enquiries and enquiries_by_service %}
+    <section class="card card-pad">
+      <h2 style="margin-bottom:1rem">Enquiries by service</h2>
+      <p class="muted small" style="margin:-.6rem 0 .8rem">Last 90 days</p>
+      <div class="bars">
+        {% for s in enquiries_by_service %}
+        <a class="bar-row" href="{% url 'portal:enquiries' %}?service={{ s.service|urlencode }}">
+          <span style="font-size:.82rem">{{ s.service }}</span>
+          <span class="bar"><span class="s-in_progress" style="width:{% widthratio s.n enquiries_by_service.0.n 100 %}%"></span></span>
+          <strong style="text-align:right">{{ s.n }}</strong>
+        </a>
+        {% endfor %}
+      </div>
+    </section>
+    {% endif %}
     <section class="card card-pad">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.4rem">
         <h2>Last 6 months</h2>

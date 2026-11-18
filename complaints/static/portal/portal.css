@@ -358,3 +358,13 @@ label.check input { margin-top: .2rem; accent-color: var(--navy); }
 .pw-toggle[aria-pressed="true"] .eye { display: none; }
 .pw-toggle[aria-pressed="true"] .eye-off { display: block; }
 .kpis { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+
+/* Enquiry "what it's about" card */
+.about-card h2, .about-card h3 { margin: .1rem 0 0; }
+.about-desc { color: var(--muted); margin: .6rem 0 0; line-height: 1.6; }
+.about-meta { display: flex; flex-wrap: wrap; gap: .5rem 1.4rem; margin-top: .9rem; font-size: .88rem; }
+.about-meta strong { color: var(--muted); font-weight: 600; margin-right: .3rem; }
+.about-preview { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 1rem 1.2rem; margin-bottom: 1rem; }
+.bar-row span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.filters { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+.filters > div:first-child { grid-column: span 2; }

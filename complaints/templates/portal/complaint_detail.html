@@ -20,15 +20,29 @@
 
 <div class="grid g-3">
   <div class="stack">
+    {% if c.is_enquiry %}
+    <section class="card card-pad about-card">
+      <p class="eyebrow">{{ c.get_enquiry_type_display|default:"Enquiry" }}{% if c.division %} · {{ c.get_division_display }}{% endif %}</p>
+      <h2>{{ c.service|default:c.subject|default:"General enquiry" }}</h2>
+      {% if c.service_description %}<p class="about-desc">{{ c.service_description }}</p>{% endif %}
+      <div class="about-meta">
+        {% if c.organisation %}<span><strong>Organisation</strong> {{ c.organisation }}</span>{% endif %}
+        {% if c.phone_number %}<span><strong>Telephone</strong> <a href="tel:{{ c.phone_number|cut:' ' }}">{{ c.phone_number }}</a></span>{% endif %}
+        {% if c.source_page %}<span><strong>Sent from</strong> {{ c.source_page }}</span>{% endif %}
+      </div>
+    </section>
+    {% endif %}
     <section class="card card-pad">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
         <h2>{{ c.noun_title }}</h2>
       </div>
       <dl class="kv">
         <dt>Client name</dt><dd>{{ c.client_name }}</dd>
+        {% if c.organisation %}<dt>Organisation</dt><dd>{{ c.organisation }}</dd>{% endif %}
         <dt>Phone number</dt><dd>{% if c.phone_number %}<a href="tel:{{ c.phone_number|cut:' ' }}">{{ c.phone_number }}</a>{% else %}—{% endif %}</dd>
         <dt>Email address</dt><dd>{% if c.email_address %}<a href="mailto:{{ c.email_address }}?subject={{ c.reference|urlencode }}">{{ c.email_address }}</a>{% else %}—{% endif %}</dd>
         {% if not c.is_enquiry or c.staff_member_involved %}<dt>Staff member involved</dt><dd>{{ c.staff_member_involved|default:"—" }}</dd>{% endif %}
+        {% if c.is_enquiry %}<dt>About</dt><dd>{{ c.service|default:"—" }}{% if c.enquiry_type %} <span class="tag">{{ c.get_enquiry_type_display }}</span>{% endif %}</dd>{% endif %}
         {% if c.subject %}<dt>Subject</dt><dd>{{ c.subject }}</dd>{% endif %}
         <dt>{{ c.details_label }}</dt><dd><p class="prose">{{ c.nature_of_complaint }}</p></dd>
       </dl>
@@ -41,6 +55,11 @@
             {% include "portal/_field.html" with field=details_form.client_name full=1 %}
             {% include "portal/_field.html" with field=details_form.phone_number %}
             {% include "portal/_field.html" with field=details_form.email_address %}
+            {% if c.is_enquiry %}
+            {% include "portal/_field.html" with field=details_form.organisation full=1 %}
+            {% include "portal/_field.html" with field=details_form.service %}
+            {% include "portal/_field.html" with field=details_form.enquiry_type %}
+            {% endif %}
             {% include "portal/_field.html" with field=details_form.staff_member_involved full=1 %}
             {% include "portal/_field.html" with field=details_form.subject full=1 %}
             {% include "portal/_field.html" with field=details_form.nature_of_complaint full=1 %}

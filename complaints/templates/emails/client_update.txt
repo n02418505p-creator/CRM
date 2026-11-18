@@ -19,7 +19,7 @@ Previous updates
 {{ e.message }}
 {% endfor %}{% endif %}
 
-Your {{ c.noun }}{% if c.subject %} "{{ c.subject }}"{% endif %} (received {{ c.date_received|date:"j F Y" }}):
+Your {{ c.noun }}{% if c.is_enquiry and c.service %} about {{ c.service }}{% elif c.subject %} "{{ c.subject }}"{% endif %} (received {{ c.date_received|date:"j F Y" }}):
 {{ c.nature_of_complaint }}
 
 Please quote {{ c.reference }} in any correspondence about this {{ c.noun }}. If you have anything to add, simply reply to this email.

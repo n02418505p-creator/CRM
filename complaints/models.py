@@ -33,6 +33,15 @@ class Complaint(models.Model):
         RESOLVED = "resolved", "Resolved"
         CLOSED = "closed", "Closed"
 
+    class EnquiryType(models.TextChoices):
+        GENERAL = "general", "General enquiry"
+        SERVICE = "service", "Service request"
+
+    class Division(models.TextChoices):
+        ADVISORY = "advisory", "MMC Capital Advisory"
+        STOCKBROKING = "stockbroking", "MMC Stockbrokers"
+        GENERAL = "general", "General"
+
     class Source(models.TextChoices):
         WEBSITE = "website", "Website form"
         PHONE = "phone", "Phone"
@@ -47,6 +56,12 @@ class Complaint(models.Model):
     phone_number = models.CharField("phone number", max_length=40, blank=True)
     email_address = models.EmailField("email address", blank=True)
     subject = models.CharField(max_length=200, blank=True)
+    # Enquiry details
+    enquiry_type = models.CharField("enquiry type", max_length=20, choices=EnquiryType.choices, blank=True)
+    division = models.CharField(max_length=20, choices=Division.choices, blank=True)
+    service = models.CharField("service", max_length=120, blank=True)
+    organisation = models.CharField(max_length=160, blank=True)
+    source_page = models.CharField("sent from page", max_length=200, blank=True)
     nature_of_complaint = models.TextField("nature of the complaint")
     staff_member_involved = models.CharField("staff member involved", max_length=150, blank=True)
     action_taken = models.TextField("action taken", blank=True)
@@ -92,6 +107,23 @@ class Complaint(models.Model):
     @property
     def details_label(self):
         return "Message" if self.is_enquiry else "Nature of the complaint"
+
+    @property
+    def service_description(self):
+        from .enquiries import service_info
+
+        info = service_info(self.service)
+        return info[2] if info else ""
+
+    def apply_service(self):
+        """Fill in division and enquiry type from the chosen service."""
+        from .enquiries import service_info
+
+        info = service_info(self.service)
+        if info:
+            self.division, self.service = info[0], info[1]
+            if not self.enquiry_type:
+                self.enquiry_type = self.EnquiryType.GENERAL if info[0] == "general" else self.EnquiryType.SERVICE
 
     @property
     def is_open(self):

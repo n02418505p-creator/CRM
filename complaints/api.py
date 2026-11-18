@@ -20,6 +20,7 @@ from django.utils.dateparse import parse_datetime
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
+from . import enquiries as enquiry_details
 from . import services
 from .models import ENQUIRY_REFERENCE_PATTERN, REFERENCE_PATTERN, REFERENCE_SEARCH, Complaint
 
@@ -205,16 +206,33 @@ def create_enquiry(request):
         if existing:
             return JsonResponse({"ok": True, "reference": existing.reference, "duplicate": True})
 
+    details = enquiry_details.parse(
+        clean["subject"], clean["message"], data.get("enquiry_about") if isinstance(data.get("enquiry_about"), str) else ""
+    )
+
+    def extra(field, max_len, choices=None):
+        value = data.get(field)
+        value = value.strip()[:max_len] if isinstance(value, str) else ""
+        if choices is not None and value not in choices:
+            value = ""
+        return value or details.get(field, "")[:max_len]
+
     enquiry = Complaint(
         case_type=Complaint.CaseType.ENQUIRY,
         source=Complaint.Source.WEBSITE,
         date_received=received,
         client_name=clean["client_name"],
         email_address=clean["email_address"],
-        phone_number=clean["phone_number"],
-        subject=clean["subject"],
-        nature_of_complaint=clean["message"],
+        phone_number=clean["phone_number"] or details.get("phone_number", "")[:40],
+        subject=details.get("subject", clean["subject"])[:200],
+        nature_of_complaint=details.get("message") or clean["message"],
+        enquiry_type=extra("enquiry_type", 20, Complaint.EnquiryType.values),
+        division=extra("division", 20, Complaint.Division.values),
+        service=extra("service", 120),
+        organisation=extra("organisation", 160),
+        source_page=extra("source_page", 200),
     )
+    enquiry.apply_service()
     if reference:
         enquiry.reference = reference
     try:

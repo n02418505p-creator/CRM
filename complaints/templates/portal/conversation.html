@@ -48,6 +48,8 @@
     <section class="card card-pad">
       <p class="eyebrow">{{ c.reference }}</p>
       <dl class="kv kv-compact">
+        {% if c.is_enquiry %}<dt>About</dt><dd>{{ c.service|default:"General enquiry" }}{% if c.enquiry_type %}<div class="muted small">{{ c.get_enquiry_type_display }}</div>{% endif %}</dd>{% endif %}
+        {% if c.organisation %}<dt>Organisation</dt><dd>{{ c.organisation }}</dd>{% endif %}
         <dt>Status</dt><dd>{% include "portal/_status.html" %}</dd>
         <dt>Handled by</dt><dd>{% if c.assigned_to %}{{ c.assigned_to.get_full_name|default:c.assigned_to.username }}{% else %}<span class="muted">Unassigned</span>{% endif %}</dd>
         <dt>Received</dt><dd>{{ c.date_received|date:"j M Y" }}</dd>

@@ -30,6 +30,10 @@ EXPORT_COLUMNS = [
     ("Phone Number", lambda c: c.phone_number),
     ("Email Address", lambda c: c.email_address),
     ("Nature of the Complaint", lambda c: c.nature_of_complaint),
+    ("Enquiry Type", lambda c: c.get_enquiry_type_display()),
+    ("Division", lambda c: c.get_division_display()),
+    ("Service", lambda c: c.service),
+    ("Organisation", lambda c: c.organisation),
     ("Subject", lambda c: c.subject),
     ("Staff Member Involved", lambda c: c.staff_member_involved),
     ("Action Taken", lambda c: c.action_taken),
@@ -103,6 +107,7 @@ class ComplaintAdmin(admin.ModelAdmin):
         ("Case", {"fields": ("case_type", "reference", "date_received", "source", "status", "assigned_to")}),
         ("Client details", {"fields": ("client_name", "phone_number", "email_address")}),
         ("Details", {"fields": ("subject", "nature_of_complaint", "staff_member_involved")}),
+        ("Enquiry", {"fields": ("enquiry_type", "division", "service", "organisation", "source_page"), "classes": ("collapse",)}),
         (
             "Handling",
             {
