@@ -1,0 +1,1 @@
+<span class="pill s-{{ c.status }}">{{ c.get_status_display }}</span>{% if c.is_overdue %} <span class="flag" title="Open longer than {{ target_days }} days">Overdue</span>{% endif %}

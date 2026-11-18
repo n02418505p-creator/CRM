@@ -20,6 +20,7 @@ from django.utils.dateparse import parse_datetime
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
+from . import services
 from .models import REFERENCE_PATTERN, Complaint
 
 logger = logging.getLogger(__name__)
@@ -116,5 +117,6 @@ def create_complaint(request):
             return JsonResponse({"ok": True, "reference": existing.reference, "duplicate": True})
         raise
 
+    services.record_new(complaint)
     logger.info("Complaint %s received from website", complaint.reference)
     return JsonResponse({"ok": True, "reference": complaint.reference}, status=201)

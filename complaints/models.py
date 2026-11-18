@@ -71,8 +71,56 @@ class Complaint(models.Model):
         end = self.resolution_date or timezone.localdate()
         return max((end - start).days, 0)
 
+    @property
+    def is_overdue(self):
+        return self.is_open and (self.days_open() or 0) > settings.COMPLAINT_TARGET_DAYS
+
     def save(self, *args, **kwargs):
         # Stamp the resolution date automatically when a complaint is resolved/closed.
         if not self.is_open and self.resolution_date is None:
             self.resolution_date = timezone.localdate()
         super().save(*args, **kwargs)
+
+
+class ComplaintEvent(models.Model):
+    """One entry on a complaint's timeline."""
+
+    class Kind(models.TextChoices):
+        CREATED = "created", "Created"
+        STATUS = "status", "Status change"
+        ASSIGNED = "assigned", "Assignment"
+        NOTE = "note", "Note"
+        UPDATED = "updated", "Update"
+
+    complaint = models.ForeignKey(Complaint, on_delete=models.CASCADE, related_name="events")
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    kind = models.CharField(max_length=20, choices=Kind.choices)
+    message = models.TextField()
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+
+    def __str__(self):
+        return f"{self.complaint.reference}: {self.message[:50]}"
+
+
+class Notification(models.Model):
+    """An in-portal notification for one staff member."""
+
+    recipient = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="complaint_notifications"
+    )
+    complaint = models.ForeignKey(Complaint, on_delete=models.CASCADE, related_name="notifications")
+    kind = models.CharField(max_length=20)
+    message = models.CharField(max_length=255)
+    is_read = models.BooleanField(default=False, db_index=True)
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+
+    def __str__(self):
+        return self.message

@@ -1,0 +1,38 @@
+{% extends "portal/base.html" %}
+{% block title %}Log a complaint{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <p class="eyebrow">New complaint</p>
+    <h1>Log a complaint</h1>
+    <p class="muted" style="margin:.4rem 0 0">For complaints received by phone, email or in person. Complaints from the website form are added automatically.</p>
+  </div>
+</div>
+
+<section class="card card-pad" style="max-width:860px">
+  <form method="post" novalidate>{% csrf_token %}
+    {% if form.non_field_errors %}<ul class="errorlist">{% for e in form.non_field_errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+    <p class="eyebrow" style="margin-top:0">How it was received</p>
+    <div class="form-grid">
+      {% include "portal/_field.html" with field=form.date_received %}
+      {% include "portal/_field.html" with field=form.source %}
+    </div>
+    <p class="eyebrow">Client</p>
+    <div class="form-grid">
+      {% include "portal/_field.html" with field=form.client_name full=1 %}
+      {% include "portal/_field.html" with field=form.phone_number %}
+      {% include "portal/_field.html" with field=form.email_address %}
+    </div>
+    <p class="eyebrow">Complaint</p>
+    <div class="form-grid">
+      {% include "portal/_field.html" with field=form.nature_of_complaint full=1 %}
+      {% include "portal/_field.html" with field=form.staff_member_involved %}
+      {% include "portal/_field.html" with field=form.assigned_to %}
+    </div>
+    <div style="display:flex;gap:.6rem;margin-top:.4rem">
+      <button class="btn" type="submit">Log complaint</button>
+      <a class="btn btn-ghost" href="{% url 'portal:list' %}">Cancel</a>
+    </div>
+  </form>
+</section>
+{% endblock %}

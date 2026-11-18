@@ -1,0 +1,102 @@
+{% load static %}<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% if unread_count %}({{ unread_count }}) {% endif %}{% block title %}Complaints Portal{% endblock %} · MMC Capital</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,400;6..72,500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'portal/portal.css' %}">
+</head>
+<body>
+{% with current=request.resolver_match.url_name %}
+<div class="app">
+  <aside class="sidebar">
+    <a class="brand" href="{% url 'portal:dashboard' %}"><img src="{{ brand_logo_url }}" alt="MMC Capital"></a>
+    <p class="brand-sub">Complaints Portal</p>
+    <nav class="nav" aria-label="Main">
+      <a href="{% url 'portal:dashboard' %}" class="{% if current == 'dashboard' %}active{% endif %}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+        Dashboard</a>
+      <a href="{% url 'portal:list' %}" class="{% if current == 'list' or current == 'detail' %}active{% endif %}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13"/><circle cx="3.5" cy="6" r="1"/><circle cx="3.5" cy="12" r="1"/><circle cx="3.5" cy="18" r="1"/></svg>
+        Complaints</a>
+      {% if perms.complaints.add_complaint %}
+      <a href="{% url 'portal:new' %}" class="{% if current == 'new' %}active{% endif %}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+        Log a complaint</a>
+      {% endif %}
+      <a href="{% url 'portal:notifications' %}" class="{% if current == 'notifications' %}active{% endif %}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+        Notifications <span class="count" id="navCount" {% if not unread_count %}hidden{% endif %}>{{ unread_count }}</span></a>
+      <div class="nav-sep"></div>
+      <a href="{% url 'portal:list' %}?assigned=me&status=open">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
+        My open complaints</a>
+      <a href="{% url 'portal:list' %}?status=overdue">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+        Overdue</a>
+      {% if user.is_superuser %}
+      <a href="{% url 'admin:auth_user_changelist' %}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.5 3-5.5 6.5-5.5s6.5 2 6.5 5.5"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14.6c2 .6 3.5 2.3 3.5 5.4"/></svg>
+        Manage staff</a>
+      {% endif %}
+    </nav>
+    <div class="sidebar-foot">
+      <div class="who">{{ user.get_full_name|default:user.username }}</div>
+      <div class="muted small">{% if user.is_superuser %}Administrator{% else %}Complaint handler{% endif %}</div>
+      <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="linkbtn small" type="submit">Sign out</button></form>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <form class="search" action="{% url 'portal:list' %}" role="search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input type="search" name="q" value="{{ request.GET.q|default:'' }}" placeholder="Search name, reference, phone, email…" aria-label="Search complaints">
+      </form>
+      <div class="spacer"></div>
+      {% if perms.complaints.add_complaint %}<a class="btn btn-bronze" href="{% url 'portal:new' %}">+ Log a complaint</a>{% endif %}
+      <div class="bell">
+        <button class="bell-btn" id="bellBtn" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Notifications">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+          <span class="badge" id="bellCount" {% if not unread_count %}hidden{% endif %}>{{ unread_count }}</span>
+        </button>
+        <div class="bell-menu" id="bellMenu" hidden>
+          <div class="head">
+            <strong>Notifications</strong>
+            {% if unread_count %}
+            <form method="post" action="{% url 'portal:notifications_read_all' %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="linkbtn small" type="submit">Mark all as read</button></form>
+            {% endif %}
+          </div>
+          <ul class="notes">
+            {% for n in recent_notifications %}
+            <li><a href="{% url 'portal:notification_open' n.pk %}" class="{% if not n.is_read %}unread{% endif %}">
+              <div class="t">{{ n.message }}</div>
+              <div class="when">{{ n.created_at|timesince }} ago</div>
+            </a></li>
+            {% empty %}
+            <li class="empty small">You're all caught up.</li>
+            {% endfor %}
+          </ul>
+          <div class="foot">
+            <a href="{% url 'portal:notifications' %}">View all</a>
+            <button class="linkbtn" id="desktopAlerts" type="button">Turn on desktop alerts</button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    {% if messages %}
+    <ul class="messages">{% for m in messages %}<li class="{{ m.tags }}">{{ m }}</li>{% endfor %}</ul>
+    {% endif %}
+
+    <main class="content">{% block content %}{% endblock %}</main>
+  </div>
+</div>
+{% endwith %}
+<div id="toast" class="toast" role="status" hidden></div>
+<script src="{% static 'portal/portal.js' %}" data-feed="{% url 'portal:notifications_feed' %}" data-latest="{{ latest_notification_id }}"></script>
+</body>
+</html>

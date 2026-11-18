@@ -1,0 +1,128 @@
+{% extends "portal/base.html" %}
+{% block title %}{{ c.reference }}{% endblock %}
+{% block content %}
+<p class="small" style="margin:0 0 .8rem"><a href="{% url 'portal:list' %}">← All complaints</a></p>
+
+<div class="detail-head">
+  <div>
+    <p class="eyebrow">{{ c.reference }}</p>
+    <h1>{{ c.client_name }}</h1>
+    <div class="meta">
+      {% include "portal/_status.html" %}
+      <span class="tag">{{ c.get_source_display }}</span>
+      <span>Received {{ c.date_received|date:"j F Y, H:i" }}</span>
+      <span>{{ c.days_open }} day{{ c.days_open|pluralize }} {% if c.is_open %}open{% else %}to resolve{% endif %}</span>
+    </div>
+  </div>
+</div>
+
+<div class="grid g-3">
+  <div class="stack">
+    <section class="card card-pad">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+        <h2>Complaint</h2>
+      </div>
+      <dl class="kv">
+        <dt>Client name</dt><dd>{{ c.client_name }}</dd>
+        <dt>Phone number</dt><dd>{% if c.phone_number %}<a href="tel:{{ c.phone_number|cut:' ' }}">{{ c.phone_number }}</a>{% else %}—{% endif %}</dd>
+        <dt>Email address</dt><dd>{% if c.email_address %}<a href="mailto:{{ c.email_address }}?subject={{ c.reference|urlencode }}">{{ c.email_address }}</a>{% else %}—{% endif %}</dd>
+        <dt>Staff member involved</dt><dd>{{ c.staff_member_involved|default:"—" }}</dd>
+        <dt>Nature of the complaint</dt><dd><p class="prose">{{ c.nature_of_complaint }}</p></dd>
+      </dl>
+      {% if can_change %}
+      <details class="edit" style="margin-top:1rem" {% if details_form.errors %}open{% endif %}>
+        <summary>Edit these details</summary>
+        <form method="post">{% csrf_token %}
+          <input type="hidden" name="action" value="details">
+          <div class="form-grid">
+            {% include "portal/_field.html" with field=details_form.client_name full=1 %}
+            {% include "portal/_field.html" with field=details_form.phone_number %}
+            {% include "portal/_field.html" with field=details_form.email_address %}
+            {% include "portal/_field.html" with field=details_form.staff_member_involved full=1 %}
+            {% include "portal/_field.html" with field=details_form.nature_of_complaint full=1 %}
+          </div>
+          <button class="btn btn-sm" type="submit">Save details</button>
+        </form>
+      </details>
+      {% endif %}
+    </section>
+
+    <section class="card card-pad">
+      <h2 style="margin-bottom:1rem">Handling</h2>
+      {% if can_change %}
+      <form method="post">{% csrf_token %}
+        <input type="hidden" name="action" value="handling">
+        {% include "portal/_field.html" with field=handling_form.action_taken %}
+        <div class="form-grid">
+          {% include "portal/_field.html" with field=handling_form.resolution_date %}
+        </div>
+        {% include "portal/_field.html" with field=handling_form.remarks %}
+        <p class="muted small" style="margin-top:-.4rem">The resolution date fills in automatically when the complaint is marked Resolved or Closed.</p>
+        <button class="btn btn-sm" type="submit">Save handling details</button>
+      </form>
+      {% else %}
+      <dl class="kv">
+        <dt>Action taken</dt><dd><p class="prose">{{ c.action_taken|default:"—" }}</p></dd>
+        <dt>Resolution date</dt><dd>{{ c.resolution_date|date:"j F Y"|default:"—" }}</dd>
+        <dt>Remarks</dt><dd><p class="prose">{{ c.remarks|default:"—" }}</p></dd>
+      </dl>
+      {% endif %}
+    </section>
+  </div>
+
+  <div class="stack">
+    {% if can_change %}
+    <section class="card card-pad">
+      <h3 style="margin-bottom:.8rem">Status</h3>
+      <form method="post">{% csrf_token %}
+        <input type="hidden" name="action" value="status">
+        <div class="field">
+          <select name="status" aria-label="New status">
+            {% for key, label in statuses %}<option value="{{ key }}" {% if c.status == key %}selected{% endif %}>{{ label }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="field"><textarea name="note" rows="2" placeholder="Optional note about this change" aria-label="Note about the status change"></textarea></div>
+        <button class="btn btn-sm" type="submit">Update status</button>
+      </form>
+    </section>
+
+    <section class="card card-pad">
+      <h3 style="margin-bottom:.8rem">Assigned to</h3>
+      <form method="post" class="inline-form">{% csrf_token %}
+        <input type="hidden" name="action" value="assign">
+        <select name="assigned_to" aria-label="Assign to">
+          <option value="">Unassigned</option>
+          {% for s in staff %}<option value="{{ s.pk }}" {% if c.assigned_to_id == s.pk %}selected{% endif %}>{{ s.get_full_name|default:s.username }}{% if s.pk == user.pk %} (me){% endif %}</option>{% endfor %}
+        </select>
+        <button class="btn btn-sm" type="submit">Assign</button>
+      </form>
+    </section>
+    {% else %}
+    <section class="card card-pad">
+      <dl class="kv"><dt>Assigned to</dt><dd>{% if c.assigned_to %}{{ c.assigned_to.get_full_name|default:c.assigned_to.username }}{% else %}Unassigned{% endif %}</dd></dl>
+    </section>
+    {% endif %}
+
+    <section class="card card-pad">
+      <h3 style="margin-bottom:.8rem">Activity</h3>
+      {% if can_change %}
+      <form method="post" style="margin-bottom:1.2rem">{% csrf_token %}
+        <input type="hidden" name="action" value="note">
+        <div class="field"><textarea name="note" rows="3" placeholder="Add an internal note (not sent to the client)" aria-label="Internal note" required></textarea></div>
+        <button class="btn btn-ghost btn-sm" type="submit">Add note</button>
+      </form>
+      {% endif %}
+      <ul class="timeline">
+        {% for e in events %}
+        <li class="k-{{ e.kind }}">
+          <div class="when">{{ e.created_at|date:"j M Y, H:i" }} · {% if e.actor %}{{ e.actor.get_full_name|default:e.actor.username }}{% else %}System{% endif %}</div>
+          <p class="msg">{{ e.message }}</p>
+        </li>
+        {% empty %}
+        <li><p class="msg muted">No activity yet.</p></li>
+        {% endfor %}
+      </ul>
+    </section>
+  </div>
+</div>
+{% endblock %}

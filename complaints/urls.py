@@ -1,0 +1,17 @@
+from django.urls import path
+
+from . import views
+
+app_name = "portal"
+
+urlpatterns = [
+    path("", views.dashboard, name="dashboard"),
+    path("complaints/", views.complaint_list, name="list"),
+    path("complaints/new/", views.complaint_new, name="new"),
+    path("complaints/export.csv", views.export_csv, name="export"),
+    path("complaints/<str:reference>/", views.complaint_detail, name="detail"),
+    path("notifications/", views.notifications, name="notifications"),
+    path("notifications/read-all/", views.notifications_read_all, name="notifications_read_all"),
+    path("notifications/feed.json", views.notifications_feed, name="notifications_feed"),
+    path("notifications/<int:pk>/open/", views.notification_open, name="notification_open"),
+]

@@ -1,0 +1,27 @@
+{% extends "portal/base.html" %}
+{% block title %}Notifications{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <p class="eyebrow">Inbox</p>
+    <h1>Notifications</h1>
+  </div>
+  {% if unread_count %}
+  <form method="post" action="{% url 'portal:notifications_read_all' %}">{% csrf_token %}<button class="btn btn-ghost" type="submit">Mark all as read</button></form>
+  {% endif %}
+</div>
+
+<section class="card" style="max-width:860px">
+  <ul class="notes">
+    {% for n in items %}
+    <li><a href="{% url 'portal:notification_open' n.pk %}" class="{% if not n.is_read %}unread{% endif %}">
+      <div class="t">{{ n.message }}</div>
+      <div class="when">{{ n.created_at|date:"j M Y, H:i" }} · {{ n.complaint.client_name }}</div>
+    </a></li>
+    {% empty %}
+    <li class="empty">No notifications yet. You'll be notified here when a new complaint arrives or one is assigned to you.</li>
+    {% endfor %}
+  </ul>
+</section>
+<p class="muted small" style="margin-top:1rem">Tip: open the bell menu and choose “Turn on desktop alerts” to get a pop-up on your computer while the portal is open.</p>
+{% endblock %}

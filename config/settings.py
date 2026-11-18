@@ -4,6 +4,7 @@ Everything secret or deployment-specific comes from environment variables,
 which Render sets from render.yaml / the dashboard.
 """
 import os
+import sys
 from pathlib import Path
 
 import dj_database_url
@@ -19,6 +20,10 @@ DEBUG = env_bool("DEBUG", False)
 SECRET_KEY = os.environ.get("SECRET_KEY") or ("dev-only-insecure-key" if DEBUG else None)
 if not SECRET_KEY:
     raise RuntimeError("SECRET_KEY environment variable is not set.")
+
+# Complaints open longer than this are flagged as overdue in the portal.
+COMPLAINT_TARGET_DAYS = int(os.environ.get("COMPLAINT_TARGET_DAYS", "14"))
+BRAND_LOGO_URL = os.environ.get("BRAND_LOGO_URL", "https://mmccapitalzim.com/img/logo.png")
 
 # Shared secret the website uses when it sends complaints to /api/complaints/
 COMPLAINTS_API_KEY = os.environ.get("COMPLAINTS_API_KEY", "")
@@ -67,6 +72,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "complaints.context_processors.portal",
             ],
         },
     },
@@ -96,10 +102,19 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+TESTING = len(sys.argv) > 1 and sys.argv[1] == "test"
 STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
-    "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
+    "staticfiles": {
+        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"
+        if TESTING
+        else "whitenoise.storage.CompressedManifestStaticFilesStorage"
+    },
 }
+
+LOGIN_URL = "login"
+LOGIN_REDIRECT_URL = "portal:dashboard"
+LOGOUT_REDIRECT_URL = "login"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
