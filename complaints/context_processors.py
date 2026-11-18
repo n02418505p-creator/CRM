@@ -1,8 +1,26 @@
 from django.conf import settings
 
 
+def nav_section(request):
+    match = getattr(request, "resolver_match", None)
+    name = match.url_name if match else ""
+    if name == "list":
+        status, assigned = request.GET.get("status", ""), request.GET.get("assigned", "")
+        if status == "overdue":
+            return "overdue"
+        if assigned == "me" and status == "open":
+            return "mine"
+        return "list"
+    if name == "detail":
+        return "list"
+    if name in ("conversation", "conversations"):
+        return "conversations"
+    return name or ""
+
+
 def portal(request):
     context = {
+        "nav": nav_section(request),
         "brand_logo_url": settings.BRAND_LOGO_URL,
         "target_days": settings.COMPLAINT_TARGET_DAYS,
         "reply_to": settings.COMPLAINTS_REPLY_TO[0] if settings.COMPLAINTS_REPLY_TO else "",

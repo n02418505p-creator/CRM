@@ -283,6 +283,43 @@ class ClientReplyTests(TestCase):
         self.assertEqual(resp.status_code, 401)
 
 
+class ConversationTests(TestCase):
+    def setUp(self):
+        self.me = make_handler("monalisa", first_name="Monalisa")
+        self.client.force_login(self.me)
+        self.c = Complaint.objects.create(
+            client_name="Takudzwa", phone_number="1", email_address="t@example.com", nature_of_complaint="Original complaint text",
+        )
+        self.url = reverse("portal:conversation", args=[self.c.reference])
+
+    def test_thread_shows_complaint_messages_and_replies(self):
+        from . import services
+        self.client.post(self.url, {"message": "We are looking into it."})
+        self.assertEqual(len(mail.outbox), 1)
+        services.record_reply(self.c, "Okay thank you", "t@example.com", message_id="<m1>")
+        resp = self.client.get(self.url)
+        self.assertContains(resp, "Original complaint text")
+        self.assertContains(resp, "We are looking into it.")
+        self.assertContains(resp, "Okay thank you")
+        self.assertGreater(self.client.get(self.url.replace("conversation/", "conversation.json")).json()["latest"], 0)
+
+    def test_inbox_and_waiting_filter(self):
+        from . import services
+        services.record_reply(self.c, "Any news?", "t@example.com", message_id="<m2>")
+        self.assertContains(self.client.get("/conversations/"), "Any news?")
+        self.assertContains(self.client.get("/conversations/?show=waiting"), "waiting for us")
+        n = Notification.objects.get(recipient=self.me, kind="reply")
+        resp = self.client.get(reverse("portal:notification_open", args=[n.pk]))
+        self.assertIn("/conversation/", resp["Location"])
+
+    def test_sidebar_highlights_filtered_views(self):
+        resp = self.client.get("/complaints/?status=overdue")
+        self.assertEqual(resp.context["nav"], "overdue")
+        self.assertEqual(self.client.get("/complaints/?assigned=me&status=open").context["nav"], "mine")
+        self.assertEqual(self.client.get("/complaints/").context["nav"], "list")
+        self.assertEqual(self.client.get(self.url).context["nav"], "conversations")
+
+
 class AdminTests(TestCase):
     def test_admin_still_works(self):
         admin = get_user_model().objects.create_superuser("boss", "b@example.com", "pw-very-long-123")

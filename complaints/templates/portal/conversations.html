@@ -1,0 +1,42 @@
+{% extends "portal/base.html" %}
+{% block title %}Conversations{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <p class="eyebrow">Client correspondence</p>
+    <h1>Conversations</h1>
+  </div>
+  <div class="segmented" role="tablist" aria-label="Filter conversations">
+    <a href="{% url 'portal:conversations' %}" class="{% if not show %}on{% endif %}">All</a>
+    <a href="{% url 'portal:conversations' %}?show=waiting" class="{% if show == 'waiting' %}on{% endif %}">Waiting for us{% if waiting_count %} <span class="count">{{ waiting_count }}</span>{% endif %}</a>
+    <a href="{% url 'portal:conversations' %}?show=mine" class="{% if show == 'mine' %}on{% endif %}">Mine</a>
+  </div>
+</div>
+
+<section class="card" style="max-width:980px">
+  <ul class="convo-list">
+    {% for r in rows %}
+    <li>
+      <a href="{% url 'portal:conversation' r.c.reference %}#latest" class="{% if r.waiting %}waiting{% endif %}">
+        <div class="avatar" aria-hidden="true">{{ r.c.client_name|slice:":1"|upper }}</div>
+        <div class="convo-main">
+          <div class="convo-top">
+            <strong>{{ r.c.client_name }}</strong>
+            <span class="muted small">{{ r.c.reference }}</span>
+            <span class="convo-when muted small">{{ r.last.created_at|date:"j M, H:i" }}</span>
+          </div>
+          <div class="convo-snippet"><span class="muted">{% if r.waiting %}{{ r.who }}:{% else %}You{% if r.last.actor_id != user.pk %} ({{ r.who }}){% endif %}:{% endif %}</span> {{ r.last.message|truncatechars:120 }}</div>
+          <div class="convo-tags">
+            {% include "portal/_status.html" with c=r.c %}
+            {% if r.waiting %}<span class="tag tag-wait">Client replied – waiting for us</span>{% endif %}
+            <span class="muted small">{{ r.count }} message{{ r.count|pluralize }}{% if r.c.assigned_to %} · {{ r.c.assigned_to.get_full_name|default:r.c.assigned_to.username }}{% endif %}</span>
+          </div>
+        </div>
+      </a>
+    </li>
+    {% empty %}
+    <li class="empty">{% if show == "waiting" %}No clients are waiting for a reply.{% elif show == "mine" %}No conversations on your complaints yet.{% else %}No conversations yet. Messages you send to clients, and their replies, appear here.{% endif %}</li>
+    {% endfor %}
+  </ul>
+</section>
+{% endblock %}

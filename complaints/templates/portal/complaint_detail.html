@@ -14,6 +14,7 @@
       <span>{{ c.days_open }} day{{ c.days_open|pluralize }} {% if c.is_open %}open{% else %}to resolve{% endif %}</span>
     </div>
   </div>
+  <a class="btn btn-bronze" href="{% url 'portal:conversation' c.reference %}#latest">Conversation with client</a>
 </div>
 
 <div class="grid g-3">
@@ -109,7 +110,10 @@
 
     {% if can_change %}
     <section class="card card-pad">
-      <h3 style="margin-bottom:.3rem">Message the client</h3>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.3rem">
+        <h3>Message the client</h3>
+        <a class="small" href="{% url 'portal:conversation' c.reference %}#latest">Open conversation →</a>
+      </div>
       {% if c.email_address %}
       <p class="muted small" style="margin:0 0 .8rem">Sent to {{ c.email_address }} with the latest status and previous updates. When the client replies, it appears below and a copy goes to {{ reply_to }}.</p>
       <form method="post">{% csrf_token %}

@@ -270,6 +270,8 @@ def notification_open(request, pk):
     if not note.is_read:
         note.is_read = True
         note.save(update_fields=["is_read"])
+    if note.kind == "reply":
+        return redirect(reverse("portal:conversation", args=[note.complaint.reference]) + "#latest")
     return redirect("portal:detail", reference=note.complaint.reference)
 
 
@@ -302,3 +304,88 @@ def notifications_feed(request):
             ],
         }
     )
+
+
+CONVERSATION_KINDS = ["client", "reply"]
+
+
+@login_required
+@view_required
+def conversation(request, reference):
+    complaint = get_object_or_404(Complaint.objects.select_related("assigned_to"), reference=reference)
+    can_change = request.user.has_perm("complaints.change_complaint")
+    if request.method == "POST":
+        if not can_change:
+            raise PermissionDenied
+        _email_client(request, complaint, request.POST.get("message", ""))
+        return redirect(reverse("portal:conversation", args=[complaint.reference]) + "#latest")
+
+    Notification.objects.filter(recipient=request.user, complaint=complaint, is_read=False).update(is_read=True)
+    messages_qs = complaint.events.filter(kind__in=CONVERSATION_KINDS).select_related("actor").order_by("created_at", "id")
+    thread = [
+        {
+            "mine": False,
+            "who": complaint.client_name,
+            "when": complaint.date_received,
+            "text": complaint.nature_of_complaint,
+            "label": f"Complaint received via {complaint.get_source_display()}",
+        }
+    ]
+    for e in messages_qs:
+        from_client = e.kind == "reply"
+        thread.append(
+            {
+                "mine": not from_client,
+                "who": complaint.client_name if from_client else services.display_name(e.actor),
+                "when": e.created_at,
+                "text": e.message,
+                "label": (f"from {e.sender}" if from_client and e.sender and e.sender != complaint.email_address.lower() else ""),
+            }
+        )
+    latest = messages_qs.last()
+    context = {
+        "c": complaint,
+        "thread": thread,
+        "can_change": can_change,
+        "latest_event_id": latest.pk if latest else 0,
+    }
+    return render(request, "portal/conversation.html", context)
+
+
+@login_required
+@view_required
+def conversation_feed(request, reference):
+    complaint = get_object_or_404(Complaint, reference=reference)
+    latest = complaint.events.filter(kind__in=CONVERSATION_KINDS).order_by("-id").values_list("pk", flat=True).first()
+    return JsonResponse({"latest": latest or 0})
+
+
+@login_required
+@view_required
+def conversations(request):
+    """Every complaint with email correspondence, most recent first."""
+    from .models import ComplaintEvent
+
+    show = request.GET.get("show", "")
+    seen, rows = set(), []
+    events = ComplaintEvent.objects.filter(kind__in=CONVERSATION_KINDS).select_related("complaint", "complaint__assigned_to", "actor")
+    for e in events.order_by("-created_at", "-id")[:500]:
+        if e.complaint_id in seen:
+            continue
+        seen.add(e.complaint_id)
+        waiting = e.kind == "reply"
+        if show == "waiting" and not waiting:
+            continue
+        if show == "mine" and e.complaint.assigned_to_id != request.user.pk:
+            continue
+        rows.append(
+            {
+                "c": e.complaint,
+                "last": e,
+                "waiting": waiting,
+                "who": e.complaint.client_name if waiting else services.display_name(e.actor),
+                "count": e.complaint.events.filter(kind__in=CONVERSATION_KINDS).count(),
+            }
+        )
+    waiting_count = sum(1 for r in rows if r["waiting"]) if show != "waiting" else len(rows)
+    return render(request, "portal/conversations.html", {"rows": rows, "show": show, "waiting_count": waiting_count})
