@@ -15,8 +15,8 @@ $script = <<<'HTML'
     var button = document.getElementById('complaintSubmit');
     var label = button.textContent;
 
-    function show(el) { el.hidden = false; el.classList.remove('d-none'); }
-    function hide(el) { el.hidden = true; el.classList.add('d-none'); }
+    function show(el) { el.hidden = false; el.style.display = ''; el.classList.remove('d-none'); }
+    function hide(el) { el.hidden = true; el.style.display = 'none'; el.classList.add('d-none'); }
     function setError(el, message) {
         el.classList.add('is-invalid');
         el.setAttribute('aria-invalid', 'true');
