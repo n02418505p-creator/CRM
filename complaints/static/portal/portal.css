@@ -343,3 +343,7 @@ label.check input { margin-top: .2rem; accent-color: var(--navy); }
 [data-theme="dark"] .btn { border-color: var(--navy); }
 [data-theme="dark"] .btn-ghost { border-color: var(--line); }
 [data-theme="dark"] .login-hero { background: #0F1F4A; }
+[data-theme="dark"] .bar .s-new { background: #E06A5F; }
+[data-theme="dark"] .bar .s-in_progress { background: #E8B05A; }
+[data-theme="dark"] .bar .s-resolved { background: #4FBF86; }
+[data-theme="dark"] .bar .s-closed { background: #8C97AD; }
