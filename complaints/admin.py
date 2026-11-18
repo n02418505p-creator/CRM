@@ -12,6 +12,7 @@ from .models import Complaint
 admin.site.site_header = "MMC Capital · Complaints Register"
 admin.site.site_title = "MMC Complaints"
 admin.site.index_title = "Complaints management"
+admin.site.site_url = None  # hide the "View site" link: the portal is the whole site
 
 STATUS_COLOURS = {
     Complaint.Status.NEW: ("#b42318", "#fef3f2"),
