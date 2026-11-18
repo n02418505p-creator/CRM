@@ -324,4 +324,9 @@ class AdminTests(TestCase):
     def test_admin_still_works(self):
         admin = get_user_model().objects.create_superuser("boss", "b@example.com", "pw-very-long-123")
         self.client.force_login(admin)
-        self.assertEqual(self.client.get("/admin/complaints/complaint/").status_code, 200)
+        resp = self.client.get("/admin/complaints/complaint/")
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "favicon-32x32.png")
+
+    def test_portal_pages_have_mmc_icon(self):
+        self.assertContains(self.client.get("/login/"), "favicon_io/favicon-32x32.png")

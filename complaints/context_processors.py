@@ -22,6 +22,7 @@ def portal(request):
     context = {
         "nav": nav_section(request),
         "brand_logo_url": settings.BRAND_LOGO_URL,
+        "brand_icon_base": settings.BRAND_ICON_BASE,
         "target_days": settings.COMPLAINT_TARGET_DAYS,
         "reply_to": settings.COMPLAINTS_REPLY_TO[0] if settings.COMPLAINTS_REPLY_TO else "",
     }

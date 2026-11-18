@@ -24,6 +24,8 @@ if not SECRET_KEY:
 # Complaints open longer than this are flagged as overdue in the portal.
 COMPLAINT_TARGET_DAYS = int(os.environ.get("COMPLAINT_TARGET_DAYS", "14"))
 BRAND_LOGO_URL = os.environ.get("BRAND_LOGO_URL", "https://mmccapitalzim.com/img/logo.png")
+# Browser tab icons (the MMC rings), served from the website.
+BRAND_ICON_BASE = os.environ.get("BRAND_ICON_BASE", "https://mmccapitalzim.com/img/favicon_io/")
 
 # Emails to clients are sent through the website server (see website/public_html/complaints-mail.php).
 MAIL_RELAY_URL = os.environ.get("MAIL_RELAY_URL", "https://www.mmccapitalzim.com/complaints-mail.php")
@@ -50,13 +52,13 @@ CSRF_TRUSTED_ORIGINS = [
 ]
 
 INSTALLED_APPS = [
+    "complaints",  # first, so its templates (e.g. the admin icon) take priority
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "complaints",
 ]
 
 MIDDLEWARE = [

@@ -1,0 +1,8 @@
+{% extends "admin/base.html" %}
+{% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | {{ site_title|default:"MMC Complaints" }}{% endblock %}
+{% block extrahead %}{{ block.super }}
+<link rel="icon" type="image/png" sizes="32x32" href="{{ brand_icon_base }}favicon-32x32.png">
+<link rel="shortcut icon" href="{{ brand_icon_base }}favicon.ico">
+{% endblock %}
+{% block branding %}<div id="site-name"><a href="{% url 'admin:index' %}">{{ site_header|default:"MMC Capital · Complaints Register" }}</a></div>{% endblock %}
+{% block nav-global %}{% endblock %}
