@@ -1,0 +1,35 @@
+# Render Blueprint: creates the complaints web app and its database in one go.
+# In Render: New > Blueprint > pick this repository.
+databases:
+  - name: mmc-complaints-db
+    plan: basic-256mb          # paid: has backups and does not expire (the free one expires after 30 days)
+    region: frankfurt
+    databaseName: mmc_complaints
+    user: mmc_complaints
+
+services:
+  - type: web
+    name: mmc-complaints
+    runtime: python
+    plan: starter              # paid: always on (free instances sleep after 15 minutes)
+    region: frankfurt
+    buildCommand: bash build.sh
+    startCommand: gunicorn config.wsgi:application --workers 2 --timeout 60
+    healthCheckPath: /healthz
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.8
+      - key: DATABASE_URL
+        fromDatabase:
+          name: mmc-complaints-db
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: COMPLAINTS_API_KEY      # copy this into the website's config.php
+        generateValue: true
+      - key: ADMIN_USERNAME          # first administrator login, created on first deploy
+        sync: false
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
