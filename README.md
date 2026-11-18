@@ -30,7 +30,7 @@ Resolution Date, Status, Remarks. It also adds a reference number, *Assigned to*
 
 ## 1. Deploy to Render (about 10 minutes)
 
-1. In Render, click **New → Blueprint** and connect the GitHub repository **Takudzwa-34/CRM**.
+1. In Render, click **New → Blueprint** and connect the GitHub repository **n02418505p-creator/CRM**.
 2. Render reads `render.yaml` and will create:
    - **mmc-complaints**: web service (Starter, about $7/month, always on)
    - **mmc-complaints-db**: Postgres database (Basic 256 MB, about $6/month, backed up, does not expire)
