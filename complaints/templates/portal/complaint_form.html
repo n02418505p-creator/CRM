@@ -29,6 +29,7 @@
       {% include "portal/_field.html" with field=form.staff_member_involved %}
       {% include "portal/_field.html" with field=form.assigned_to %}
     </div>
+    <label class="check" style="margin-bottom:1rem"><input type="checkbox" name="send_acknowledgement" value="yes" checked> Email the client a confirmation with their reference number (if an email address is given)</label>
     <div style="display:flex;gap:.6rem;margin-top:.4rem">
       <button class="btn" type="submit">Log complaint</button>
       <a class="btn btn-ghost" href="{% url 'portal:list' %}">Cancel</a>

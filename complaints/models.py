@@ -91,6 +91,7 @@ class ComplaintEvent(models.Model):
         ASSIGNED = "assigned", "Assignment"
         NOTE = "note", "Note"
         UPDATED = "updated", "Update"
+        CLIENT = "client", "Emailed to client"
 
     complaint = models.ForeignKey(Complaint, on_delete=models.CASCADE, related_name="events")
     actor = models.ForeignKey(

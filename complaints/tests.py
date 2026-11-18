@@ -2,6 +2,7 @@ import json
 from datetime import timedelta
 
 from django.contrib.auth import get_user_model
+from django.core import mail
 from django.contrib.auth.models import Group, Permission
 from django.core.management import call_command
 from django.test import TestCase, override_settings
@@ -176,6 +177,66 @@ class PortalTests(TestCase):
         body = self.client.get("/complaints/export.csv").content.decode("utf-8-sig")
         self.assertIn("Nature of the Complaint", body)
         self.assertIn("'=HYPERLINK(1)", body)
+
+
+class ClientEmailTests(TestCase):
+    def setUp(self):
+        self.me = make_handler("garikayi", first_name="Garikayi", last_name="Gomwe")
+        self.other = make_handler("thapelo", first_name="Thapelo")
+        self.client.force_login(self.me)
+        self.c = Complaint.objects.create(
+            client_name="Takudzwa Murombedzi", phone_number="0772000000", email_address="client@example.com",
+            nature_of_complaint="Slow service at the trading desk.",
+        )
+        self.url = reverse("portal:detail", args=[self.c.reference])
+
+    def test_message_client(self):
+        self.client.post(self.url, {"action": "client", "message": "We have sent your case to the relevant team."})
+        self.assertEqual(len(mail.outbox), 1)
+        email = mail.outbox[0]
+        self.assertEqual(email.to, ["client@example.com"])
+        self.assertIn(self.c.reference, email.subject)
+        self.assertIn("has been updated with the following comments", email.body)
+        self.assertIn("Garikayi Gomwe", email.body)
+        self.assertIn("We have sent your case", email.body)
+        self.assertIn("Status:      New", email.body)
+        self.assertEqual(self.c.events.filter(kind=ComplaintEvent.Kind.CLIENT).count(), 1)
+
+    def test_history_included_in_later_updates(self):
+        self.client.post(self.url, {"action": "client", "message": "First update."})
+        self.client.post(self.url, {"action": "client", "message": "Second update."})
+        self.assertIn("Previous updates", mail.outbox[1].body)
+        self.assertIn("First update.", mail.outbox[1].body)
+
+    def test_status_and_assignment_notify_client(self):
+        self.client.post(self.url, {"action": "assign", "assigned_to": self.other.pk, "notify_client": "yes"})
+        self.assertIn("assigned to Thapelo", mail.outbox[-1].body)
+        self.client.post(self.url, {"action": "status", "status": "resolved", "note": "Refund paid.", "notify_client": "yes"})
+        self.assertIn("Your complaint has been resolved.", mail.outbox[-1].body)
+        self.assertIn("Refund paid.", mail.outbox[-1].body)
+        self.assertIn("Handled by:  Thapelo", mail.outbox[-1].body)
+        self.assertEqual(len(mail.outbox), 2)
+
+    def test_no_email_when_unticked(self):
+        self.client.post(self.url, {"action": "status", "status": "in_progress"})
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_no_email_address(self):
+        self.c.email_address = ""
+        self.c.save()
+        self.client.post(self.url, {"action": "client", "message": "Hello"})
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_acknowledgement_for_logged_complaint(self):
+        self.client.post("/complaints/new/", {
+            "date_received": timezone.localtime().strftime("%Y-%m-%dT%H:%M"), "source": "phone",
+            "client_name": "Caller", "phone_number": "0771111111", "email_address": "caller@example.com",
+            "nature_of_complaint": "Could not reach my broker.", "staff_member_involved": "",
+            "assigned_to": "", "send_acknowledgement": "yes",
+        })
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn("We've received your complaint", mail.outbox[0].subject)
+        self.assertIn("Your reference number is CMP-", mail.outbox[0].body)
 
 
 class AdminTests(TestCase):

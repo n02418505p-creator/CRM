@@ -94,3 +94,80 @@ def record_update(complaint, changed_labels, actor):
         return False
     log(complaint, ComplaintEvent.Kind.UPDATED, "Updated " + ", ".join(changed_labels) + ".", actor)
     return True
+
+
+# ---------------------------------------------------------------------------
+# Emails to the client
+# ---------------------------------------------------------------------------
+
+def handler_name(complaint):
+    return display_name(complaint.assigned_to) if complaint.assigned_to else "MMC Capital client service team"
+
+
+def email_client(complaint, message, actor, acknowledgement=False):
+    """Email the client an update and record it on the timeline.
+
+    Returns (sent, error_message)."""
+    from django.conf import settings
+    from django.core.mail import EmailMessage
+    from django.template.loader import render_to_string
+    from django.utils import timezone
+
+    message = (message or "").strip()
+    if not complaint.email_address:
+        return False, "There is no email address for this client."
+    if not message:
+        return False, "Please write a message for the client."
+
+    history = list(complaint.events.filter(kind=ComplaintEvent.Kind.CLIENT).select_related("actor")[:10])
+    body = render_to_string(
+        "emails/client_update.txt",
+        {
+            "c": complaint,
+            "message": message,
+            "staff_name": display_name(actor) if actor else "MMC Capital",
+            "sent_at": timezone.localtime(),
+            "handler": handler_name(complaint),
+            "history": history,
+            "acknowledgement": acknowledgement,
+        },
+    )
+    subject = (
+        f"We've received your complaint – reference {complaint.reference}"
+        if acknowledgement
+        else f"Update on your complaint {complaint.reference} – MMC Capital"
+    )
+    email = EmailMessage(subject, body, to=[complaint.email_address], reply_to=[settings.COMPLAINTS_REPLY_TO])
+    try:
+        sent = email.send(fail_silently=False)
+    except Exception as exc:  # network problems, relay refused, etc.
+        log(complaint, ComplaintEvent.Kind.NOTE, f"Email to the client could not be sent ({exc}).", actor)
+        return False, "The email to the client could not be sent. Please try again later."
+    if not sent:
+        return False, "The email to the client could not be sent."
+    log(complaint, ComplaintEvent.Kind.CLIENT, message, actor)
+    return True, ""
+
+
+def status_message(complaint, note=""):
+    texts = {
+        Complaint.Status.NEW: "Your complaint has been received and is waiting to be reviewed.",
+        Complaint.Status.IN_PROGRESS: "Your complaint is being reviewed by our team.",
+        Complaint.Status.RESOLVED: "Your complaint has been resolved.",
+        Complaint.Status.CLOSED: "Your complaint has been closed.",
+    }
+    text = texts.get(complaint.status, f"Your complaint is now {complaint.get_status_display()}.")
+    return text + (f"\n\n{note}" if note else "")
+
+
+def assignment_message(complaint):
+    return (
+        f"Your complaint has been assigned to {handler_name(complaint)}, "
+        "who will be in touch with you to resolve it."
+    )
+
+
+ACKNOWLEDGEMENT_MESSAGE = (
+    "Your complaint has been logged in our complaints register. "
+    "We will review it and keep you updated on progress by email."
+)

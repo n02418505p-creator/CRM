@@ -106,7 +106,11 @@ function mmc_mail(string $to, string $subject, string $body, ?string $replyTo = 
         $headers[] = 'Reply-To: ' . mmc_header_safe($replyTo);
     }
     $encodedSubject = '=?UTF-8?B?' . base64_encode(mmc_header_safe($subject)) . '?=';
-    return @mail(mmc_header_safe($to), $encodedSubject, $body, implode("\r\n", $headers), '-f' . $from);
+    $ok = @mail(mmc_header_safe($to), $encodedSubject, $body, implode("\r\n", $headers), '-f' . $from);
+    if (!$ok) {
+        mmc_log('mail() failed for ' . mmc_header_safe($to) . ': ' . mmc_header_safe($subject));
+    }
+    return $ok;
 }
 
 function mmc_complaint_summary(array $p): string

@@ -163,6 +163,15 @@ def export_csv(request):
     return response
 
 
+def _email_client(request, complaint, message, acknowledgement=False):
+    sent, error = services.email_client(complaint, message, request.user, acknowledgement=acknowledgement)
+    if sent:
+        messages.success(request, f"Email sent to {complaint.email_address}.")
+    else:
+        messages.error(request, error)
+    return sent
+
+
 @login_required
 @permission_required("complaints.add_complaint", raise_exception=True)
 def complaint_new(request):
@@ -171,6 +180,8 @@ def complaint_new(request):
         complaint = form.save()
         services.record_new(complaint, actor=request.user)
         messages.success(request, f"Complaint {complaint.reference} has been logged.")
+        if request.POST.get("send_acknowledgement") == "yes" and complaint.email_address:
+            _email_client(request, complaint, services.ACKNOWLEDGEMENT_MESSAGE, acknowledgement=True)
         return redirect("portal:detail", reference=complaint.reference)
     return render(request, "portal/complaint_form.html", {"form": form})
 
@@ -188,16 +199,26 @@ def complaint_detail(request, reference):
             raise PermissionDenied
         action = request.POST.get("action")
         done = False
+        notify_client = request.POST.get("notify_client") == "yes"
         if action == "status":
-            done = services.change_status(complaint, request.POST.get("status", ""), request.user, request.POST.get("note", "").strip())
+            note = request.POST.get("note", "").strip()
+            done = services.change_status(complaint, request.POST.get("status", ""), request.user, note)
             if done:
                 messages.success(request, f"Status changed to {complaint.get_status_display()}.")
+                if notify_client:
+                    _email_client(request, complaint, services.status_message(complaint, note))
         elif action == "assign":
             user_id = request.POST.get("assigned_to", "")
             user = services.handlers().filter(pk=user_id).first() if user_id else None
             done = services.assign(complaint, user, request.user)
             if done:
                 messages.success(request, f"Assigned to {services.display_name(user)}." if user else "Complaint unassigned.")
+                if notify_client and user:
+                    _email_client(request, complaint, services.assignment_message(complaint))
+        elif action == "client":
+            done = _email_client(request, complaint, request.POST.get("message", ""))
+            if not done:
+                return redirect("portal:detail", reference=complaint.reference)
         elif action == "note":
             done = services.add_note(complaint, request.POST.get("note", ""), request.user)
             if done:

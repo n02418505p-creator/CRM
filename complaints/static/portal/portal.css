@@ -172,6 +172,10 @@ details.edit[open] summary { margin-bottom: 1rem; }
 .timeline .msg { white-space: pre-wrap; margin: .15rem 0 0; }
 .timeline .k-note .msg { background: #F6FBF8; border: 1px solid #DCEFE4; padding: .55rem .7rem; border-radius: 8px; }
 .inline-form { display: flex; gap: .5rem; }
+label.check { display: flex; gap: .5rem; align-items: flex-start; font-weight: 500; font-size: .85rem; color: var(--muted); margin: 0 0 .8rem; cursor: pointer; }
+label.check input { margin-top: .2rem; accent-color: var(--navy); }
+.timeline .k-client::before { background: var(--bronze); box-shadow: 0 0 0 1px var(--bronze); }
+.timeline .k-client .msg { background: #FBF5EC; border: 1px solid #EEDDC3; padding: .55rem .7rem; border-radius: 8px; }
 .inline-form select { flex: 1; }
 
 /* Messages */

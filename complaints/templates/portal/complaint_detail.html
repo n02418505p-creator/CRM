@@ -81,25 +81,45 @@
             {% for key, label in statuses %}<option value="{{ key }}" {% if c.status == key %}selected{% endif %}>{{ label }}</option>{% endfor %}
           </select>
         </div>
-        <div class="field"><textarea name="note" rows="2" placeholder="Optional note about this change" aria-label="Note about the status change"></textarea></div>
+        <div class="field"><textarea name="note" rows="2" placeholder="Optional comment about this change" aria-label="Comment about the status change"></textarea></div>
+        {% if c.email_address %}<label class="check"><input type="checkbox" name="notify_client" value="yes" checked> Email the client about this change (the comment is included)</label>{% endif %}
         <button class="btn btn-sm" type="submit">Update status</button>
       </form>
     </section>
 
     <section class="card card-pad">
       <h3 style="margin-bottom:.8rem">Assigned to</h3>
-      <form method="post" class="inline-form">{% csrf_token %}
+      <form method="post" id="assignForm">{% csrf_token %}
         <input type="hidden" name="action" value="assign">
+        <div class="inline-form">
         <select name="assigned_to" aria-label="Assign to">
           <option value="">Unassigned</option>
           {% for s in staff %}<option value="{{ s.pk }}" {% if c.assigned_to_id == s.pk %}selected{% endif %}>{{ s.get_full_name|default:s.username }}{% if s.pk == user.pk %} (me){% endif %}</option>{% endfor %}
         </select>
         <button class="btn btn-sm" type="submit">Assign</button>
+        </div>
+        {% if c.email_address %}<label class="check" style="margin-top:.6rem"><input type="checkbox" name="notify_client" value="yes" checked> Let the client know who is handling it</label>{% endif %}
       </form>
     </section>
     {% else %}
     <section class="card card-pad">
       <dl class="kv"><dt>Assigned to</dt><dd>{% if c.assigned_to %}{{ c.assigned_to.get_full_name|default:c.assigned_to.username }}{% else %}Unassigned{% endif %}</dd></dl>
+    </section>
+    {% endif %}
+
+    {% if can_change %}
+    <section class="card card-pad">
+      <h3 style="margin-bottom:.3rem">Message the client</h3>
+      {% if c.email_address %}
+      <p class="muted small" style="margin:0 0 .8rem">Sent to {{ c.email_address }} with the latest status and previous updates. Replies go to {{ reply_to }}.</p>
+      <form method="post">{% csrf_token %}
+        <input type="hidden" name="action" value="client">
+        <div class="field"><textarea name="message" rows="4" placeholder="Dear Valued Client, …" aria-label="Message to the client" required></textarea></div>
+        <button class="btn btn-bronze btn-sm" type="submit">Send email to client</button>
+      </form>
+      {% else %}
+      <p class="muted small" style="margin:0">There's no email address for this client. Add one under “Edit these details” to send updates.</p>
+      {% endif %}
     </section>
     {% endif %}
 
@@ -115,7 +135,7 @@
       <ul class="timeline">
         {% for e in events %}
         <li class="k-{{ e.kind }}">
-          <div class="when">{{ e.created_at|date:"j M Y, H:i" }} · {% if e.actor %}{{ e.actor.get_full_name|default:e.actor.username }}{% else %}System{% endif %}</div>
+          <div class="when">{{ e.created_at|date:"j M Y, H:i" }} · {% if e.actor %}{{ e.actor.get_full_name|default:e.actor.username }}{% else %}System{% endif %}{% if e.kind == "client" %} · <strong>Emailed to client</strong>{% endif %}</div>
           <p class="msg">{{ e.message }}</p>
         </li>
         {% empty %}

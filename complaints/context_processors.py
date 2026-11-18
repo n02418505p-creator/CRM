@@ -5,6 +5,7 @@ def portal(request):
     context = {
         "brand_logo_url": settings.BRAND_LOGO_URL,
         "target_days": settings.COMPLAINT_TARGET_DAYS,
+        "reply_to": settings.COMPLAINTS_REPLY_TO,
     }
     user = getattr(request, "user", None)
     if user is not None and user.is_authenticated:

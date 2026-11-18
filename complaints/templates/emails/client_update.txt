@@ -1,0 +1,29 @@
+{% autoescape off %}Dear {{ c.client_name }},
+
+{% if acknowledgement %}Thank you for contacting MMC Capital. We have recorded your complaint and a member of our team will be in touch with you.
+
+Your reference number is {{ c.reference }}.{% else %}Your complaint {{ c.reference }} has been updated with the following comments:{% endif %}
+
+{{ sent_at|date:"Y-m-d H:i" }} - {{ staff_name }}
+------------------------------------------------------------
+{{ message }}
+------------------------------------------------------------
+
+Status:      {{ c.get_status_display }}
+Handled by:  {{ handler }}
+{% if history %}
+
+Previous updates
+{% for e in history %}
+{{ e.created_at|date:"Y-m-d H:i" }} - {% if e.actor %}{{ e.actor.get_full_name|default:e.actor.username }}{% else %}MMC Capital{% endif %}
+{{ e.message }}
+{% endfor %}{% endif %}
+
+Your complaint (received {{ c.date_received|date:"j F Y" }}):
+{{ c.nature_of_complaint }}
+
+Please quote {{ c.reference }} in any correspondence about this complaint. If you have anything to add, simply reply to this email.
+
+Kind regards,
+MMC Capital
+{% endautoescape %}

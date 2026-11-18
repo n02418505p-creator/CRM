@@ -25,6 +25,11 @@ if not SECRET_KEY:
 COMPLAINT_TARGET_DAYS = int(os.environ.get("COMPLAINT_TARGET_DAYS", "14"))
 BRAND_LOGO_URL = os.environ.get("BRAND_LOGO_URL", "https://mmccapitalzim.com/img/logo.png")
 
+# Emails to clients are sent through the website server (see website/public_html/complaints-mail.php).
+MAIL_RELAY_URL = os.environ.get("MAIL_RELAY_URL", "https://www.mmccapitalzim.com/complaints-mail.php")
+COMPLAINTS_REPLY_TO = os.environ.get("COMPLAINTS_REPLY_TO", "research@mmccapitalzim.com")
+EMAIL_BACKEND = os.environ.get("EMAIL_BACKEND", "complaints.mail.RelayEmailBackend")
+
 # Shared secret the website uses when it sends complaints to /api/complaints/
 COMPLAINTS_API_KEY = os.environ.get("COMPLAINTS_API_KEY", "")
 
