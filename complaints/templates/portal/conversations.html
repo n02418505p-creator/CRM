@@ -25,7 +25,7 @@
             <span class="muted small">{{ r.c.reference }}</span>
             <span class="convo-when muted small">{{ r.last.created_at|date:"j M, H:i" }}</span>
           </div>
-          <div class="convo-snippet"><span class="muted">{% if r.waiting %}{{ r.who }}:{% else %}You{% if r.last.actor_id != user.pk %} ({{ r.who }}){% endif %}:{% endif %}</span> {{ r.last.message|truncatechars:120 }}</div>
+          <div class="convo-snippet"><span class="muted">{% if r.waiting %}{{ r.who }}:{% else %}You{% if r.last.actor_id != user.pk %} ({{ r.who }}){% endif %}:{% endif %}</span> {{ r.snippet|truncatechars:120 }}</div>
           <div class="convo-tags">
             {% include "portal/_status.html" with c=r.c %}
             {% if r.waiting %}<span class="tag tag-wait">Client replied – waiting for us</span>{% endif %}

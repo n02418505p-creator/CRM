@@ -190,9 +190,18 @@ _QUOTE_STARTS = [
 ]
 
 
+CID_PLACEHOLDER = re.compile(r"\[cid:[^\]]*\]", re.IGNORECASE)
+
+
+def clean_message(text):
+    """Remove placeholders Outlook leaves where inline images were."""
+    return re.sub(r"\n{3,}", "\n\n", CID_PLACEHOLDER.sub("", text or "")).strip()
+
+
 def strip_quoted(text):
     """Keep only what the client wrote, not the earlier emails quoted underneath."""
-    lines = (text or "").replace("\r\n", "\n").split("\n")
+    text = CID_PLACEHOLDER.sub("", text or "")
+    lines = text.replace("\r\n", "\n").split("\n")
     kept = []
     for i, line in enumerate(lines):
         if line.lstrip().startswith(">"):

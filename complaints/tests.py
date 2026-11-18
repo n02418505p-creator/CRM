@@ -277,6 +277,11 @@ class ClientReplyTests(TestCase):
         self.assertIn("(your reply)", mail.outbox[-1].body)
         self.assertIn("Please call me.", mail.outbox[-1].body)
 
+    def test_outlook_image_placeholders_removed(self):
+        self.post(from_email="tendai@example.com", subject=f"Re: {self.c.reference}",
+                  text="Resolve as soon as possible\n\n[cid:7d2685b0-04ea-438a-b908-a636c461ae2c]", message_id="<cid@x>")
+        self.assertEqual(self.c.events.get(kind=ComplaintEvent.Kind.REPLY).message, "Resolve as soon as possible")
+
     def test_unmatched_and_unauthorised(self):
         self.assertFalse(self.post(from_email="x@example.com", subject="Hello", text="hi").json()["matched"])
         resp = self.client.post("/api/complaints/inbound/", data="{}", content_type="application/json", HTTP_X_API_KEY="bad")
@@ -327,6 +332,14 @@ class AdminTests(TestCase):
         resp = self.client.get("/admin/complaints/complaint/")
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, "favicon-32x32.png")
+
+    def test_dark_theme_switch_and_no_activity_panel(self):
+        user = make_handler("dark")
+        self.client.force_login(user)
+        c = Complaint.objects.create(client_name="A", phone_number="1", nature_of_complaint="x")
+        resp = self.client.get(reverse("portal:detail", args=[c.reference]))
+        self.assertContains(resp, 'id="themeBtn"')
+        self.assertNotContains(resp, "<h3 style=\"margin-bottom:.8rem\">Activity</h3>", html=False)
 
     def test_portal_pages_have_mmc_icon(self):
         self.assertContains(self.client.get("/login/"), "favicon_io/favicon-32x32.png")

@@ -9,6 +9,16 @@
     });
   });
 
+  // Light / dark theme
+  var themeBtn = document.getElementById("themeBtn");
+  if (themeBtn) {
+    themeBtn.addEventListener("click", function () {
+      var next = document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark";
+      document.documentElement.setAttribute("data-theme", next);
+      try { localStorage.setItem("mmc-theme", next); } catch (e) {}
+    });
+  }
+
   // Notification bell
   var btn = document.getElementById("bellBtn");
   var menu = document.getElementById("bellMenu");

@@ -127,26 +127,6 @@
     </section>
     {% endif %}
 
-    <section class="card card-pad">
-      <h3 style="margin-bottom:.8rem">Activity</h3>
-      {% if can_change %}
-      <form method="post" style="margin-bottom:1.2rem">{% csrf_token %}
-        <input type="hidden" name="action" value="note">
-        <div class="field"><textarea name="note" rows="3" placeholder="Add an internal note (not sent to the client)" aria-label="Internal note" required></textarea></div>
-        <button class="btn btn-ghost btn-sm" type="submit">Add note</button>
-      </form>
-      {% endif %}
-      <ul class="timeline">
-        {% for e in events %}
-        <li class="k-{{ e.kind }}">
-          <div class="when">{{ e.created_at|date:"j M Y, H:i" }} · {% if e.kind == "reply" %}<strong>{{ c.client_name }} replied</strong>{% if e.sender and e.sender != c.email_address|lower %} from {{ e.sender }}{% endif %}{% elif e.actor %}{{ e.actor.get_full_name|default:e.actor.username }}{% else %}System{% endif %}{% if e.kind == "client" %} · <strong>Emailed to client</strong>{% endif %}</div>
-          <p class="msg">{{ e.message }}</p>
-        </li>
-        {% empty %}
-        <li><p class="msg muted">No activity yet.</p></li>
-        {% endfor %}
-      </ul>
-    </section>
   </div>
 </div>
 {% endblock %}

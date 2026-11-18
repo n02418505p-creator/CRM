@@ -338,7 +338,7 @@ def conversation(request, reference):
                 "mine": not from_client,
                 "who": complaint.client_name if from_client else services.display_name(e.actor),
                 "when": e.created_at,
-                "text": e.message,
+                "text": services.clean_message(e.message),
                 "label": (f"from {e.sender}" if from_client and e.sender and e.sender != complaint.email_address.lower() else ""),
             }
         )
@@ -385,6 +385,7 @@ def conversations(request):
                 "waiting": waiting,
                 "who": e.complaint.client_name if waiting else services.display_name(e.actor),
                 "count": e.complaint.events.filter(kind__in=CONVERSATION_KINDS).count(),
+                "snippet": services.clean_message(e.message),
             }
         )
     waiting_count = sum(1 for r in rows if r["waiting"]) if show != "waiting" else len(rows)
