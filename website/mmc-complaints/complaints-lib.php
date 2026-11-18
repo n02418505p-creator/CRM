@@ -32,10 +32,10 @@ function mmc_new_reference(): string
  * Returns ['ok' => bool, 'reference' => ?string, 'permanent' => bool, 'error' => string].
  * 'permanent' means resending will never work (Render rejected the data itself).
  */
-function mmc_send_to_render(array $payload): array
+function mmc_send_to_render(array $payload, ?string $url = null): array
 {
     $cfg = mmc_config();
-    $ch = curl_init($cfg['render_api_url']);
+    $ch = curl_init($url ?? $cfg['render_api_url']);
     curl_setopt_array($ch, [
         CURLOPT_POST           => true,
         CURLOPT_POSTFIELDS     => json_encode($payload, JSON_UNESCAPED_UNICODE),
@@ -69,9 +69,9 @@ function mmc_send_to_render(array $payload): array
 }
 
 /** Save a complaint that could not be sent, so retry-queue.php can resend it. */
-function mmc_queue_save(array $payload, string $lastError): bool
+function mmc_queue_save(array $payload, string $lastError, ?string $url = null): bool
 {
-    $item = ['payload' => $payload, 'attempts' => 1, 'last_error' => $lastError, 'queued_at' => date('c')];
+    $item = ['payload' => $payload, 'attempts' => 1, 'last_error' => $lastError, 'queued_at' => date('c'), 'url' => $url];
     $file = mmc_dir('queue') . '/' . $payload['reference'] . '.json';
     $ok = file_put_contents($file, json_encode($item, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE), LOCK_EX) !== false;
     if ($ok) {
@@ -316,4 +316,45 @@ function mmc_process_inbound(string $raw): array
         return ['ok' => true, 'permanent' => false, 'skipped' => !$matched, 'error' => ''];
     }
     return ['ok' => false, 'permanent' => $status === 400, 'skipped' => false, 'error' => "HTTP $status"];
+}
+
+
+// ---------------------------------------------------------------------------
+// Enquiries from the Contact Us form
+// ---------------------------------------------------------------------------
+
+function mmc_enquiries_url(): string
+{
+    $cfg = mmc_config();
+    return $cfg['render_enquiries_url'] ?? preg_replace('~/api/complaints/?$~', '/api/enquiries/', $cfg['render_api_url']);
+}
+
+/** Log a Contact Us message in the CRM. Never throws; queues it if the CRM can't be reached. */
+function mmc_record_enquiry(string $name, string $email, string $subject, string $message, string $phone = ''): ?string
+{
+    try {
+        $payload = [
+            'reference'     => 'ENQ-' . date('Ymd') . '-' . strtoupper(bin2hex(random_bytes(3))),
+            'submitted_at'  => date('c'),
+            'client_name'   => mb_substr(trim($name), 0, 150),
+            'email_address' => trim($email),
+            'phone_number'  => mb_substr(trim($phone), 0, 40),
+            'subject'       => mb_substr(trim($subject), 0, 200),
+            'message'       => mb_substr(trim($message), 0, 5000),
+        ];
+        $url = mmc_enquiries_url();
+        $result = mmc_send_to_render($payload, $url);
+        if ($result['ok']) {
+            mmc_log("Enquiry {$result['reference']} sent to the CRM");
+            return $result['reference'];
+        }
+        if (!$result['permanent'] && mmc_queue_save($payload, $result['error'], $url)) {
+            mmc_log("Enquiry {$payload['reference']} QUEUED: {$result['error']}");
+            return $payload['reference'];
+        }
+        mmc_log("Enquiry from {$payload['email_address']} could not be logged: {$result['error']}");
+    } catch (Throwable $e) {
+        mmc_log('Enquiry logging error: ' . $e->getMessage());
+    }
+    return null;
 }

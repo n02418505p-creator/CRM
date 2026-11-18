@@ -20,7 +20,7 @@ foreach ($files as $file) {
         continue;
     }
     $ref = $item['payload']['reference'];
-    $result = mmc_send_to_render($item['payload']);
+    $result = mmc_send_to_render($item['payload'], $item['url'] ?? null);
 
     if ($result['ok']) {
         unlink($file);
