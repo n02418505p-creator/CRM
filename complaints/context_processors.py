@@ -4,17 +4,16 @@ from django.conf import settings
 def nav_section(request):
     match = getattr(request, "resolver_match", None)
     name = match.url_name if match else ""
-    if name == "list":
+    if name in ("list", "enquiries"):
+        # "My open cases" and "Overdue" are filtered views of these lists.
         status, assigned = request.GET.get("status", ""), request.GET.get("assigned", "")
         if status == "overdue":
             return "overdue"
         if assigned == "me" and status == "open":
             return "mine"
-        return "list"
+        return name
     if name == "detail":
         return "list"
-    if name == "enquiries":
-        return "enquiries"
     if name in ("conversation", "conversations"):
         return "conversations"
     return name or ""

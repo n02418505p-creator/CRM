@@ -9,6 +9,19 @@
     });
   });
 
+  // Mobile menu
+  var menuBtn = document.getElementById("menuBtn");
+  var sidebar = document.querySelector(".sidebar");
+  if (menuBtn && sidebar) {
+    menuBtn.addEventListener("click", function () {
+      var open = !sidebar.classList.contains("open");
+      sidebar.classList.toggle("open", open);
+      menuBtn.setAttribute("aria-expanded", String(open));
+      menuBtn.setAttribute("aria-label", open ? "Close menu" : "Open menu");
+      document.body.classList.toggle("menu-open", open);
+    });
+  }
+
   // Light / dark theme
   var themeBtn = document.getElementById("themeBtn");
   if (themeBtn) {

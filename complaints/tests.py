@@ -516,6 +516,15 @@ class RoleTests(TestCase):
         recipients = set(Notification.objects.filter(kind="new").values_list("recipient__username", flat=True))
         self.assertEqual(recipients, {"service", "boss"})
 
+    def test_sidebar_highlight_for_client_service(self):
+        self.client.force_login(self.service)
+        self.assertEqual(self.client.get("/enquiries/?status=overdue").context["nav"], "overdue")
+        self.assertEqual(self.client.get("/enquiries/?assigned=me&status=open").context["nav"], "mine")
+        self.assertEqual(self.client.get("/enquiries/").context["nav"], "enquiries")
+        page = self.client.get("/").content.decode()
+        self.assertIn('href="/enquiries/?status=overdue"', page)
+        self.assertIn('id="menuBtn"', page)
+
     def test_assignment_list_matches_case_type(self):
         self.client.force_login(self.boss)
         staff = {u.username for u in self.client.get(self.detail(self.enquiry)).context["staff"]}

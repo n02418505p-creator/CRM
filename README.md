@@ -1,103 +1,124 @@
-# MMC Capital – Complaints Register
+# MMC CRM
 
-Clients lodge complaints on **mmccapitalzim.com/complaints.php**. Each complaint is
-sent automatically to this complaints system on **Render**, where staff log in to
-view, assign, update and close it.
+MMC Capital's client relations system for **complaints** and **enquiries**.
+
+- Clients lodge complaints on **mmccapitalzim.com/complaints.php**, ask questions through **Contact Us**, and request services on the **Advisory** and **Stockbroker Services** pages.
+- Every submission lands in the **MMC CRM** at **https://mmc-complaints.onrender.com**. Staff log in there to assign, update, resolve and reply to clients by email.
+- Client email replies come back into the CRM as a conversation.
 
 ```
-Client ──► complaints.php (HostGator) ──► submit-complaint.php ──► Render API ──► Postgres
-                                              │                                    ▲
-                                              ├─ emails client + team              │
-                                              └─ if Render is down: queue ── retry-queue.php (cron)
-Staff ──► https://<your-service>.onrender.com  (login) ────────────────────────────┘
+                     ┌──────────────────── mmccapitalzim.com (HostGator) ────────────────────┐
+ Client ─ complaint ─►  complaints.php ─► submit-complaint.php ─┐                            │
+ Client ─ Contact Us / service request ─► submit.php ───────────┤  (queued + retried by cron │
+                     │                                          │   if the CRM is down)      │
+ Client ─ email reply ─► replies@cases.mmccapitalzim.com ─► mmc-complaints/inbound-email.php │
+                     └──────────────────────────────────────────┼────────────────────────────┘
+                                                                ▼
+                         MMC CRM (Django on Render) ── Postgres
+                                                                │
+ Client ◄── update emails ◄── complaints-mail.php (sent from the website server) ◄──┘
+ Staff  ──► https://mmc-complaints.onrender.com (login, by role)
 ```
 
-The register uses the same columns as the existing register: Date Received, Client Name,
-Phone Number, Email Address, Nature of the Complaint, Staff Member Involved, Action Taken,
-Resolution Date, Status, Remarks. It also adds a reference number, *Assigned to*,
-*Source* (website, phone, walk-in…) and *Days open*.
+## Features
 
-## What's in this repository
+**Cases**
+- **Complaints:** reference `CMP-YYYYMMDD-XXXXXX`. Columns match the paper register: date received, client, phone, email, nature of the complaint, staff member involved, action taken, resolution date, status, remarks.
+- **Enquiries:** reference `ENQ-…`. Each one records the enquiry type (general enquiry or service request), division (MMC Capital Advisory or MMC Stockbrokers), service (with the description from the website), organisation, telephone and the page it came from.
+- **Statuses:** New → In progress → Resolved → Closed. The resolution date is filled in automatically, and a case open longer than 14 days is flagged **overdue**.
+- **Logging a case:** staff log phone, email and walk-in cases in the portal, choosing the service for enquiries.
+
+**Portal**
+- **Dashboard:** open, overdue and assigned-to-me counts, cases by status, a six-month trend, enquiries by service, and the latest and my-open cases.
+- **Lists:** search, filters (status, assignee, source, dates, enquiry type and service), pagination and **Export to Excel (CSV)**.
+- **Case page:** client details, the "what it's about" card for enquiries, status, assignment and handling details.
+- **Conversations:** a chat view of every email to and from the client, plus an inbox with **Waiting for us** and **Mine** filters.
+- **Notifications:** a bell with an unread count, live pop-ups and optional desktop alerts. They cover new cases, assignments, status changes and client replies.
+- **Look:** MMC branding, light and dark themes, and a layout that works on phones, with a menu button and a fixed sign-in screen that shows the logo.
+
+**Email**
+- **To clients:** a confirmation with the reference number, plus updates on status changes, on assignment and when staff send a message. Each update includes the current status, who is handling the case and the earlier messages.
+- **From clients:** replies go to `research@` and to `replies@cases.mmccapitalzim.com`, which files them in the CRM. Quoted earlier emails, Outlook image placeholders and out-of-office replies are removed or ignored.
+
+## Roles
+
+| Group | Access |
+|---|---|
+| **Complaint handlers** | Complaints only |
+| **Client service** | Enquiries only |
+| **Administrators** | Everything, plus **Manage staff** (staff status is given automatically) |
+
+Superusers have full access. Lists, case pages, conversations, exports, search, the dashboard, the assignment list and new-case notifications all follow the person's role. Groups are created and updated on every deploy by `python manage.py setup_complaints`.
+
+**Adding staff:** sign in as an administrator, open **Manage staff → Add user**, then choose their group or groups and save.
+
+## Repository layout
 
 | Path | What it is |
 |---|---|
-| `config/`, `complaints/`, `manage.py` | The Django app that runs on Render (staff portal + API) |
-| `render.yaml`, `build.sh`, `requirements.txt` | Render setup |
-| `website/public_html/` | Files to upload to the website's `public_html` folder |
-| `website/mmc-complaints/` | Private files to upload to the home folder, **next to** `public_html` (not inside it) |
+| `config/` | Django settings and URLs |
+| `complaints/` | The CRM app: models, views, API, roles, emails, templates and static files |
+| `complaints/enquiries.py` | Service list (with descriptions) and parser for website enquiries |
+| `complaints/tests.py` | Automated tests (run on every push by GitHub Actions) |
+| `render.yaml`, `build.sh`, `requirements.txt` | Render deployment |
+| `website/public_html/` | Files in the website's `public_html` (`complaints.php`, `submit-complaint.php`, `complaints-mail.php`) |
+| `website/mmc-complaints/` | Private website files that sit **next to** `public_html`: `config.php`, `complaints-lib.php`, `retry-queue.php`, `inbound-email.php` |
 
----
+## Deployment (Render)
 
-## 1. Deploy to Render (about 10 minutes)
+- **Services:** the `render.yaml` blueprint creates **mmc-complaints**, the web service (Starter plan, always on), and **mmc-complaints-db** (Postgres, Basic 256 MB), both in Frankfurt.
+- **Releases:** every push to `main` deploys automatically. The build runs `migrate` and `setup_complaints`. Render reads this repository by its public URL, so the repository must stay **public**. It contains no passwords, keys or client data.
+- **Workflow:** work on a branch, wait for the GitHub Actions **tests** to pass, then merge to `main`.
 
-1. In Render, click **New → Blueprint** and connect the GitHub repository **n02418505p-creator/CRM**.
-2. Render reads `render.yaml` and will create:
-   - **mmc-complaints**: web service (Starter, about $7/month, always on)
-   - **mmc-complaints-db**: Postgres database (Basic 256 MB, about $6/month, backed up, does not expire)
-3. When asked, fill in:
-   - `ADMIN_USERNAME`: your login name, e.g. `takudzwa`
-   - `ADMIN_EMAIL`: your email address
-   - `ADMIN_PASSWORD`: a strong password (10+ characters)
-4. Click **Apply** and wait for the deploy to finish (green **Live**).
-5. Open the service URL (e.g. `https://mmc-complaints.onrender.com`) and log in.
-6. Go to the service's **Environment** tab and copy the value of **`COMPLAINTS_API_KEY`**.
-   You'll need it in step 2.
+**Environment variables** (Render → mmc-complaints → Environment)
 
-> After the first deploy you can delete `ADMIN_PASSWORD` from the Environment tab;
-> the account has already been created. Change your password in the portal.
+| Variable | Purpose |
+|---|---|
+| `SECRET_KEY` | Django secret (generated) |
+| `DATABASE_URL` | Postgres connection (from the database) |
+| `COMPLAINTS_API_KEY` | Shared key between the website and the CRM; also goes in `mmc-complaints/config.php` on the website |
+| `ADMIN_USERNAME` / `ADMIN_EMAIL` / `ADMIN_PASSWORD` | First administrator, created on the first deploy |
+| `COMPLAINT_TARGET_DAYS` | Days before an open case is overdue (default 14) |
+| `MAIL_RELAY_URL` | Website script that sends CRM emails (default `https://www.mmccapitalzim.com/complaints-mail.php`) |
+| `COMPLAINTS_REPLY_TO` | Reply-To addresses for client emails (default `research@mmccapitalzim.com,replies@cases.mmccapitalzim.com`) |
+| `BRAND_LOGO_URL` / `BRAND_ICON_BASE` | Logo and browser icons (loaded from mmccapitalzim.com) |
+| `ALLOWED_HOSTS` | Extra host names, e.g. a custom domain |
 
-## 2. Install on the website (HostGator)
+## Website setup (HostGator / cPanel)
 
-Try it on **preview.mmccapitalzim.com** first, then repeat for the live site.
+1. **Private folder:** upload `website/mmc-complaints/*` to `/home1/xqqdbvte/mmc-complaints/`. In `config.php`, set `render_api_url`, `render_api_key` (the `COMPLAINTS_API_KEY`), `portal_url`, `team_emails` and `from_email`. Keep the real key only on the server.
+2. **Public files:** upload `website/public_html/*` to `public_html` (and to the preview site if needed). `complaints.php` takes its header, navigation and footer from the site's own `contact.html`.
+3. **Contact Us:** `submit.php` calls `mmc_record_enquiry()` after its checks, so each message is logged in the CRM as an enquiry. The email to research@ is unchanged. Service request forms post to the same script.
+4. **Cron** (every 15 minutes): `php /home1/xqqdbvte/mmc-complaints/retry-queue.php >/dev/null 2>&1`. It resends anything queued while the CRM was unreachable.
+5. **Client replies:**
+   - The subdomain `cases.mmccapitalzim.com` has its MX record pointing at the server, with email routing set to *local*.
+   - The forwarder `replies@cases.mmccapitalzim.com` pipes to `mmc-complaints/inbound-email.php`, which must be executable (`755`).
+6. **Email authentication for mmccapitalzim.com:**
+   - SPF: `v=spf1 ip4:50.6.160.183 include:spf.protection.outlook.com -all`.
+   - DKIM: a single `default._domainkey` record. cPanel → Email Deliverability should show it as valid.
+   - Microsoft 365 email is not affected.
 
-1. Edit `website/mmc-complaints/config.php`:
-   - `render_api_url`: your Render URL + `/api/complaints/`
-   - `render_api_key`: the `COMPLAINTS_API_KEY` from step 1.6
-   - `portal_url`: your Render URL
-   - `team_emails` / `from_email`: real mailboxes on mmccapitalzim.com
-     (create `complaints@mmccapitalzim.com` in cPanel → Email Accounts, or use an existing one)
-2. In cPanel **File Manager**, in your home folder (`/home1/xqqdbvte`), create the folder
-   **`mmc-complaints`** (beside `public_html`, *not inside it*) and upload
-   `config.php`, `complaints-lib.php` and `retry-queue.php` into it.
-3. Upload `complaints.php` and `submit-complaint.php` into **`public_html`**
-   (or `preview.mmccapitalzim.com` for testing). The page automatically reuses the
-   navigation, footer and styling of `contact.html`.
-4. In cPanel → **Cron Jobs**, add a job that runs **every 15 minutes**:
-   ```
-   php /home1/xqqdbvte/mmc-complaints/retry-queue.php
-   ```
-5. Add a **"Complaints"** link to the site, e.g. in the footer or on the Contact page, pointing to `complaints.php`.
-6. Submit a test complaint. You should get the confirmation email, the team should get an
-   alert, and the complaint should appear in the portal.
+Logs are in `mmc-complaints/logs/complaints-YYYY-MM.log`. Queued items are in `queue/` and `inbound-queue/`, and items that failed permanently are in `failed/`.
 
-## 3. Add staff
+## API (used by the website)
 
-In the portal: **Users → Add user**. After saving:
-- tick **Staff status** (lets them log in)
-- add them to the group **Complaint handlers** (can view, add and edit complaints but not delete)
-- tick **Superuser status** only for people who should manage users
+All endpoints need the `X-API-Key` header.
 
-## Using the portal
+| Endpoint | Body (JSON) |
+|---|---|
+| `POST /api/complaints/` | `reference`, `submitted_at`, `client_name`, `phone_number`, `email_address`, `nature_of_complaint`, `staff_member_involved` |
+| `POST /api/enquiries/` | `reference`, `submitted_at`, `client_name`, `email_address`, `phone_number`, `subject`, `message`, optional `enquiry_type`, `division`, `service`, `organisation`, `enquiry_about` (`division\|topic`) |
+| `POST /api/complaints/inbound/` | `from_email`, `from_name`, `subject`, `text`, `message_id` (client replies) |
 
-- **Filter** by open/closed, status, assignee, source or date. **Search** across name, phone, email, reference and text.
-- **Phone or walk-in complaints:** click *Add complaint* and set *Source*.
-- **Bulk actions:** select rows → *Mark as In progress / Resolved / Closed* or *Export to Excel (CSV)*.
-- The **resolution date** fills in automatically when a complaint is set to Resolved or Closed.
-- Every change is recorded: open a complaint and click **History** to see who changed what and when.
-
-## Optional: a nicer portal address
-
-Render → service → **Settings → Custom Domains** → add `complaints.mmccapitalzim.com`,
-then add the CNAME record it shows in cPanel → **Zone Editor**. Then add an environment
-variable `ALLOWED_HOSTS=complaints.mmccapitalzim.com` and update `config.php` to use the new address.
+Re-sending the same `reference` or `message_id` never creates duplicates. `GET /healthz` is used for Render health checks.
 
 ## Developing locally
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-export DEBUG=true COMPLAINTS_API_KEY=dev
-python manage.py migrate && python manage.py createsuperuser
+export DEBUG=true COMPLAINTS_API_KEY=dev EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend
+python manage.py migrate && python manage.py setup_complaints && python manage.py createsuperuser
 python manage.py test        # run the tests
 python manage.py runserver   # http://localhost:8000
 ```

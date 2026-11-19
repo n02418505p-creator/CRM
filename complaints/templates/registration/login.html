@@ -15,7 +15,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,400;6..72,500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{% static 'portal/portal.css' %}">
 </head>
-<body>
+<body class="login-page">
 <div class="login-wrap">
   <section class="login-hero">
     <span class="logo"><img src="{{ brand_logo_url }}" alt="MMC Capital"></span>
@@ -28,6 +28,10 @@
   </section>
   <section class="login-panel">
     <div class="login-card">
+      <div class="login-mobile-brand">
+        <img src="{{ brand_logo_url }}" alt="MMC Capital">
+        <p class="eyebrow">MMC CRM</p>
+      </div>
       <h2>Sign in</h2>
       <p class="muted" style="margin:0 0 1.4rem">Use your MMC CRM account.</p>
       {% if form.errors %}
