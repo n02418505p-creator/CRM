@@ -21,18 +21,22 @@
   <aside class="sidebar">
     <div class="sidebar-top">
       <a class="brand" href="{% url 'portal:dashboard' %}"><img src="{{ brand_logo_url }}" alt="MMC Capital"></a>
-      <button class="menu-btn" id="menuBtn" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="sidebarMenu">
-        <svg class="open-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
-        <svg class="close-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
-        <span class="menu-count" {% if not unread_count %}hidden{% endif %}>{{ unread_count }}</span>
+      <button class="drawer-close" id="drawerClose" type="button" aria-label="Close menu">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
       </button>
     </div>
     <p class="brand-sub">MMC CRM</p>
     <div class="sidebar-menu" id="sidebarMenu">
+    <form class="search drawer-search" action="{% url home_list %}" role="search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input type="search" name="q" placeholder="Search cases…" aria-label="Search">
+    </form>
     <nav class="nav" aria-label="Main">
+      <p class="nav-label">Home</p>
       <a href="{% url 'portal:dashboard' %}" class="{% if nav == 'dashboard' %}active{% endif %}">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
         Dashboard</a>
+      <p class="nav-label">Cases</p>
       {% if can_complaints %}
       <a href="{% url 'portal:list' %}" class="{% if nav == 'list' %}active{% endif %}">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13"/><circle cx="3.5" cy="6" r="1"/><circle cx="3.5" cy="12" r="1"/><circle cx="3.5" cy="18" r="1"/></svg>
@@ -55,6 +59,7 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
         Notifications <span class="count" id="navCount" {% if not unread_count %}hidden{% endif %}>{{ unread_count }}</span></a>
       <div class="nav-sep"></div>
+      <p class="nav-label">My work</p>
       <a href="{% url home_list %}?assigned=me&status=open" class="{% if nav == 'mine' %}active{% endif %}">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
         My open cases</a>
@@ -62,6 +67,7 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
         Overdue</a>
       {% if is_portal_admin %}
+      <p class="nav-label">Admin</p>
       <a href="{% url 'admin:auth_user_changelist' %}">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.5 3-5.5 6.5-5.5s6.5 2 6.5 5.5"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14.6c2 .6 3.5 2.3 3.5 5.4"/></svg>
         Manage staff</a>
@@ -74,10 +80,16 @@
     </div>
     </div>
   </aside>
+  <div class="drawer-backdrop" id="drawerBackdrop" hidden></div>
 
   <div class="main">
     <header class="topbar">
-      <form class="search" action="{% url home_list %}" role="search">
+      <button class="menu-btn" id="menuBtn" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="sidebarMenu">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+        <span class="menu-count" {% if not unread_count %}hidden{% endif %}>{{ unread_count }}</span>
+      </button>
+      <span class="topbar-title" id="topbarTitle"></span>
+      <form class="search topbar-search" action="{% url home_list %}" role="search">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
         <input type="search" name="q" value="{{ request.GET.q|default:'' }}" placeholder="Search name, reference, phone, email…" aria-label="Search">
       </form>

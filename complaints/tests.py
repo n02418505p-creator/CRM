@@ -524,6 +524,8 @@ class RoleTests(TestCase):
         page = self.client.get("/").content.decode()
         self.assertIn('href="/enquiries/?status=overdue"', page)
         self.assertIn('id="menuBtn"', page)
+        self.assertIn('id="drawerBackdrop"', page)
+        self.assertIn('class="nav-label"', page)
 
     def test_assignment_list_matches_case_type(self):
         self.client.force_login(self.boss)
