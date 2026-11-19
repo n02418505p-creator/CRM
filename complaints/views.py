@@ -12,6 +12,7 @@ from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from django.views.decorators.clickjacking import xframe_options_sameorigin
 from django.views.decorators.http import require_POST
 
 from . import roles, services
@@ -503,14 +504,17 @@ def reports(request):
 
 @login_required
 @view_required
+@xframe_options_sameorigin
 def report_pdf(request):
+    """The report as a PDF: shown in the browser for previewing, or downloaded with ?download=1."""
     from . import report_pdf as pdf
 
     report, _ = _report_params(request)
     content = pdf.render(report, request.user)
     name = f"MMC-{report['noun_plural'].lower()}-{report['period']}-report-{report['start']:%Y-%m-%d}.pdf"
     response = HttpResponse(content, content_type="application/pdf")
-    response["Content-Disposition"] = f'attachment; filename="{name}"'
+    disposition = "attachment" if request.GET.get("download") else "inline"
+    response["Content-Disposition"] = f'{disposition}; filename="{name}"'
     return response
 
 

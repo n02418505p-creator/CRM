@@ -501,9 +501,14 @@ class ReportTests(TestCase):
         self.assertEqual(page.status_code, 200)
         self.assertContains(page, "Complaints report")
         self.assertContains(page, "logo.png")
+        self.assertContains(page, 'id="previewBtn"')
         pdf = self.client.get("/reports/report.pdf?period=weekly")
         self.assertEqual(pdf["Content-Type"], "application/pdf")
         self.assertTrue(pdf.content.startswith(b"%PDF"))
+        self.assertTrue(pdf["Content-Disposition"].startswith("inline"))      # preview in the browser
+        self.assertEqual(pdf["X-Frame-Options"], "SAMEORIGIN")               # can be shown inside the page
+        download = self.client.get("/reports/report.pdf?period=weekly&download=1")
+        self.assertTrue(download["Content-Disposition"].startswith("attachment"))
         csv_resp = self.client.get("/reports/report.csv?period=monthly&value=" + timezone.localdate().strftime("%Y-%m"))
         self.assertIn("Recent", csv_resp.content.decode("utf-8-sig"))
 

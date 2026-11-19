@@ -1,5 +1,41 @@
 {% extends "portal/base.html" %}
-{% block title %}Reports{% endblock %}
+{% block title %}Reports<dialog class="pdf-preview" id="pdfPreview" aria-labelledby="pdfPreviewTitle">
+  <div class="pdf-preview-head">
+    <div>
+      <p class="eyebrow">Preview</p>
+      <h2 id="pdfPreviewTitle">{{ report.noun_plural }} report · {{ report.label }}</h2>
+    </div>
+    <div class="pdf-preview-actions">
+      <a class="btn btn-bronze" href="{% url 'portal:report_pdf' %}?{{ query }}&download=1">Download PDF</a>
+      <button class="btn btn-ghost" type="button" id="pdfPreviewClose">Close</button>
+    </div>
+  </div>
+  <div class="pdf-preview-body">
+    <p class="muted pdf-preview-loading">Preparing the report…</p>
+    <iframe id="pdfPreviewFrame" title="Report preview"></iframe>
+  </div>
+</dialog>
+<script>
+(function () {
+  var btn = document.getElementById("previewBtn");
+  var dialog = document.getElementById("pdfPreview");
+  var frame = document.getElementById("pdfPreviewFrame");
+  if (!btn || !dialog || !dialog.showModal) { return; }  // no dialog support: the link opens a new tab
+  btn.addEventListener("click", function (e) {
+    if (window.matchMedia("(max-width: 820px)").matches) { return; }  // phones: open in a new tab
+    e.preventDefault();
+    if (frame.getAttribute("src") !== btn.href) {
+      dialog.classList.remove("loaded");
+      frame.setAttribute("src", btn.href);
+    }
+    dialog.showModal();
+  });
+  frame.addEventListener("load", function () { dialog.classList.add("loaded"); });
+  document.getElementById("pdfPreviewClose").addEventListener("click", function () { dialog.close(); });
+  dialog.addEventListener("click", function (e) { if (e.target === dialog) { dialog.close(); } });
+})();
+</script>
+{% endblock %}
 {% block content %}
 <div class="page-head report-controls">
   <div>
@@ -7,7 +43,8 @@
     <h1>Reports</h1>
   </div>
   <div style="display:flex;gap:.5rem;flex-wrap:wrap">
-    <a class="btn btn-bronze" href="{% url 'portal:report_pdf' %}?{{ query }}">Download PDF</a>
+    <a class="btn btn-bronze" id="previewBtn" href="{% url 'portal:report_pdf' %}?{{ query }}" target="_blank" rel="noopener">Preview</a>
+    <a class="btn btn-ghost" href="{% url 'portal:report_pdf' %}?{{ query }}&download=1">Download PDF</a>
     <button class="btn btn-ghost" type="button" onclick="window.print()">Print</button>
     <a class="btn btn-ghost" href="{% url 'portal:report_csv' %}?{{ query }}">Export to Excel</a>
   </div>
@@ -138,4 +175,40 @@
 
   <footer class="report-foot muted small">Generated {{ report.generated_at|date:"j M Y, H:i" }} by {{ user.get_full_name|default:user.username }} · MMC Capital · Confidential</footer>
 </article>
+<dialog class="pdf-preview" id="pdfPreview" aria-labelledby="pdfPreviewTitle">
+  <div class="pdf-preview-head">
+    <div>
+      <p class="eyebrow">Preview</p>
+      <h2 id="pdfPreviewTitle">{{ report.noun_plural }} report · {{ report.label }}</h2>
+    </div>
+    <div class="pdf-preview-actions">
+      <a class="btn btn-bronze" href="{% url 'portal:report_pdf' %}?{{ query }}&download=1">Download PDF</a>
+      <button class="btn btn-ghost" type="button" id="pdfPreviewClose">Close</button>
+    </div>
+  </div>
+  <div class="pdf-preview-body">
+    <p class="muted pdf-preview-loading">Preparing the report…</p>
+    <iframe id="pdfPreviewFrame" title="Report preview"></iframe>
+  </div>
+</dialog>
+<script>
+(function () {
+  var btn = document.getElementById("previewBtn");
+  var dialog = document.getElementById("pdfPreview");
+  var frame = document.getElementById("pdfPreviewFrame");
+  if (!btn || !dialog || !dialog.showModal) { return; }  // no dialog support: the link opens a new tab
+  btn.addEventListener("click", function (e) {
+    if (window.matchMedia("(max-width: 820px)").matches) { return; }  // phones: open in a new tab
+    e.preventDefault();
+    if (frame.getAttribute("src") !== btn.href) {
+      dialog.classList.remove("loaded");
+      frame.setAttribute("src", btn.href);
+    }
+    dialog.showModal();
+  });
+  frame.addEventListener("load", function () { dialog.classList.add("loaded"); });
+  document.getElementById("pdfPreviewClose").addEventListener("click", function () { dialog.close(); });
+  dialog.addEventListener("click", function (e) { if (e.target === dialog) { dialog.close(); } });
+})();
+</script>
 {% endblock %}
