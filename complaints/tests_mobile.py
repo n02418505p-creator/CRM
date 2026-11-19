@@ -140,6 +140,14 @@ class PhoneLayoutTests(StaticLiveServerTestCase):
             self.assertLessEqual(box["x"] + box["width"], width + 1)
             context.close()
 
+    def test_lists_show_cards_on_phones(self):
+        context, page = self.new_page(390)
+        page.goto(self.live_server_url + "/complaints/")
+        self.assertFalse(page.is_visible("table.list thead"))
+        label = page.evaluate("getComputedStyle(document.querySelector('td[data-label=\"Status\"]'), '::before').content")
+        self.assertIn("Status", label)
+        context.close()
+
     def test_sign_in_page(self):
         for width in WIDTHS:
             context, page = self.new_page(width, logged_in=False)
