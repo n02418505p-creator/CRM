@@ -146,6 +146,9 @@ class PhoneLayoutTests(StaticLiveServerTestCase):
         self.assertFalse(page.is_visible("table.list thead"))
         label = page.evaluate("getComputedStyle(document.querySelector('td[data-label=\"Status\"]'), '::before').content")
         self.assertIn("Status", label)
+        self.assertFalse(page.is_visible("#f-status"))
+        page.click("#filtersToggle")
+        self.assertTrue(page.is_visible("#f-status"))
         context.close()
 
     def test_sign_in_page(self):

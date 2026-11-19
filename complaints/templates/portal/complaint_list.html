@@ -13,7 +13,7 @@
 </div>
 
 <section class="card">
-  <form class="filters" method="get">
+  <form class="filters{% if filters.status or filters.assigned or filters.source or filters.from or filters.to or filters.enquiry_type or filters.service %} open{% endif %}" method="get" id="filtersForm">
     <div>
       <label for="f-q">Search</label>
       <input id="f-q" type="search" name="q" value="{{ filters.q }}" placeholder="Name, reference, phone, text…">
@@ -68,6 +68,7 @@
       <input id="f-to" type="date" name="to" value="{{ filters.to }}">
     </div>
     <div class="actions">
+      <button class="btn btn-ghost filters-toggle" type="button" id="filtersToggle" aria-expanded="false">More filters</button>
       <button class="btn" type="submit">Filter</button>
       <a class="btn btn-ghost" href="{{ list_url }}">Reset</a>
     </div>

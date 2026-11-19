@@ -34,6 +34,19 @@
   var titleEl = document.getElementById("topbarTitle");
   if (titleEl) { titleEl.textContent = document.title.replace(/^\(\d+\)\s*/, "").split(" · ")[0]; }
 
+  // Phones: show or hide the extra list filters
+  var filtersForm = document.getElementById("filtersForm");
+  var filtersToggle = document.getElementById("filtersToggle");
+  if (filtersForm && filtersToggle) {
+    var syncFilters = function () {
+      var open = filtersForm.classList.contains("open");
+      filtersToggle.textContent = open ? "Fewer filters" : "More filters";
+      filtersToggle.setAttribute("aria-expanded", String(open));
+    };
+    filtersToggle.addEventListener("click", function () { filtersForm.classList.toggle("open"); syncFilters(); });
+    syncFilters();
+  }
+
   // Light / dark theme
   var themeBtn = document.getElementById("themeBtn");
   if (themeBtn) {
