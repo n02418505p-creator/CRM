@@ -1,41 +1,5 @@
 {% extends "portal/base.html" %}
-{% block title %}Reports<dialog class="pdf-preview" id="pdfPreview" aria-labelledby="pdfPreviewTitle">
-  <div class="pdf-preview-head">
-    <div>
-      <p class="eyebrow">Preview</p>
-      <h2 id="pdfPreviewTitle">{{ report.noun_plural }} report · {{ report.label }}</h2>
-    </div>
-    <div class="pdf-preview-actions">
-      <a class="btn btn-bronze" href="{% url 'portal:report_pdf' %}?{{ query }}&download=1">Download PDF</a>
-      <button class="btn btn-ghost" type="button" id="pdfPreviewClose">Close</button>
-    </div>
-  </div>
-  <div class="pdf-preview-body">
-    <p class="muted pdf-preview-loading">Preparing the report…</p>
-    <iframe id="pdfPreviewFrame" title="Report preview"></iframe>
-  </div>
-</dialog>
-<script>
-(function () {
-  var btn = document.getElementById("previewBtn");
-  var dialog = document.getElementById("pdfPreview");
-  var frame = document.getElementById("pdfPreviewFrame");
-  if (!btn || !dialog || !dialog.showModal) { return; }  // no dialog support: the link opens a new tab
-  btn.addEventListener("click", function (e) {
-    if (window.matchMedia("(max-width: 820px)").matches) { return; }  // phones: open in a new tab
-    e.preventDefault();
-    if (frame.getAttribute("src") !== btn.href) {
-      dialog.classList.remove("loaded");
-      frame.setAttribute("src", btn.href);
-    }
-    dialog.showModal();
-  });
-  frame.addEventListener("load", function () { dialog.classList.add("loaded"); });
-  document.getElementById("pdfPreviewClose").addEventListener("click", function () { dialog.close(); });
-  dialog.addEventListener("click", function (e) { if (e.target === dialog) { dialog.close(); } });
-})();
-</script>
-{% endblock %}
+{% block title %}Reports{% endblock %}
 {% block content %}
 <div class="page-head report-controls">
   <div>

@@ -502,6 +502,8 @@ class ReportTests(TestCase):
         self.assertContains(page, "Complaints report")
         self.assertContains(page, "logo.png")
         self.assertContains(page, 'id="previewBtn"')
+        self.assertContains(page, "<title>Reports · MMC CRM</title>", html=False)
+        self.assertEqual(page.content.decode().count('id="pdfPreview"'), 1)
         pdf = self.client.get("/reports/report.pdf?period=weekly")
         self.assertEqual(pdf["Content-Type"], "application/pdf")
         self.assertTrue(pdf.content.startswith(b"%PDF"))
