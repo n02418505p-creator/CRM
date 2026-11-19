@@ -66,8 +66,9 @@ def _counter_rows(counter, total, limit=None):
 
 
 def _change(now, before):
+    """Percentage change on the previous period, or None if there was nothing before."""
     if before == 0:
-        return None if now == 0 else 100
+        return None
     return round(100 * (now - before) / before)
 
 
