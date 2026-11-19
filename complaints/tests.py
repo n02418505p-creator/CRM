@@ -459,6 +459,66 @@ class EnquiryDetailTests(TestCase):
         self.assertContains(email, "We provide trade execution")
 
 
+class ReportTests(TestCase):
+    def setUp(self):
+        from datetime import date as _date
+        self.service = make_handler("service", group="Client service")
+        self.handler = make_handler("handler", group="Complaint handlers", first_name="Thapelo")
+        self.boss = make_handler("boss", group="Administrators")
+        now = timezone.now()
+        self.c1 = Complaint.objects.create(client_name="Old", phone_number="1", nature_of_complaint="x",
+                                           date_received=now - timedelta(days=40), assigned_to=self.handler)
+        self.c2 = Complaint.objects.create(client_name="Recent", phone_number="1", nature_of_complaint="Slow service",
+                                           staff_member_involved="J. Banda", assigned_to=self.handler)
+        self.c2.status = "resolved"
+        self.c2.save()
+        Complaint.objects.create(case_type="enquiry", client_name="Asker", email_address="a@example.com",
+                                 nature_of_complaint="?", service="Capital Raising", division="advisory", enquiry_type="service")
+
+    def test_periods(self):
+        from datetime import date as _date
+        from .reports import period_bounds
+        start, end, label = period_bounds("weekly", "2026-11-19")
+        self.assertEqual((start, end), (_date(2026, 11, 16), _date(2026, 11, 23)))
+        start, end, label = period_bounds("monthly", "2026-02")
+        self.assertEqual((start, end, label), (_date(2026, 2, 1), _date(2026, 3, 1), "February 2026"))
+        start, end, _ = period_bounds("monthly", "2026-12")
+        self.assertEqual(end, _date(2027, 1, 1))
+
+    def test_monthly_complaints_report(self):
+        from .reports import build
+        report = build("complaint", "monthly", timezone.localdate().strftime("%Y-%m"))
+        self.assertEqual(report["stats"]["received"], 1)
+        self.assertEqual(report["stats"]["resolved"], 1)
+        self.assertEqual(report["stats"]["open_at_end"], 1)  # the 40-day-old one
+        self.assertEqual(report["stats"]["overdue"], 1)
+        self.assertEqual(report["by_handler"][0]["label"], "Thapelo")
+        self.assertEqual(report["extra"][0][1][0]["label"], "J. Banda")
+
+    def test_report_pages_pdf_and_csv(self):
+        self.client.force_login(self.handler)
+        page = self.client.get("/reports/?period=monthly")
+        self.assertEqual(page.status_code, 200)
+        self.assertContains(page, "Complaints report")
+        self.assertContains(page, "logo.png")
+        pdf = self.client.get("/reports/report.pdf?period=weekly")
+        self.assertEqual(pdf["Content-Type"], "application/pdf")
+        self.assertTrue(pdf.content.startswith(b"%PDF"))
+        csv_resp = self.client.get("/reports/report.csv?period=monthly&value=" + timezone.localdate().strftime("%Y-%m"))
+        self.assertIn("Recent", csv_resp.content.decode("utf-8-sig"))
+
+    def test_report_follows_role(self):
+        self.client.force_login(self.service)
+        page = self.client.get("/reports/?type=complaint")
+        self.assertEqual(page.context["report"]["case_type"], "enquiry")  # complaints not allowed, falls back
+        self.assertContains(page, "By service")
+        self.client.force_login(self.boss)
+        self.assertEqual(self.client.get("/reports/?type=complaint").context["report"]["case_type"], "complaint")
+        self.assertEqual(len(self.client.get("/reports/").context["types"]), 2)
+        pdf = self.client.get("/reports/report.pdf?type=enquiry&period=monthly")
+        self.assertTrue(pdf.content.startswith(b"%PDF"))
+
+
 class RoleTests(TestCase):
     def setUp(self):
         self.complaint = Complaint.objects.create(client_name="Complainer", phone_number="1", nature_of_complaint="x")

@@ -66,6 +66,9 @@
       <a href="{% url home_list %}?status=overdue" class="{% if nav == 'overdue' %}active{% endif %}">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
         Overdue</a>
+      <a href="{% url 'portal:reports' %}" class="{% if nav == 'reports' %}active{% endif %}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>
+        Reports</a>
       {% if is_portal_admin %}
       <p class="nav-label">Admin</p>
       <a href="{% url 'admin:auth_user_changelist' %}">

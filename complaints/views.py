@@ -464,3 +464,68 @@ def conversations(request):
         )
     waiting_count = sum(1 for r in rows if r["waiting"]) if show != "waiting" else len(rows)
     return render(request, "portal/conversations.html", {"rows": rows, "show": show, "waiting_count": waiting_count})
+
+
+def _report_params(request):
+    from . import reports as report_lib
+
+    types = roles.allowed_types(request.user)
+    if not types:
+        raise PermissionDenied
+    case_type = request.GET.get("type") if request.GET.get("type") in types else types[0]
+    period = "monthly" if request.GET.get("period") == "monthly" else "weekly"
+    return report_lib.build(case_type, period, request.GET.get("value") or None), types
+
+
+@login_required
+@view_required
+def reports(request):
+    from . import reports as report_lib
+
+    report, types = _report_params(request)
+    params = {"type": report["case_type"], "period": report["period"], "value": report["value"]}
+    from urllib.parse import urlencode
+
+    context = {
+        "report": report,
+        "types": [(t, "Complaints" if t == Complaint.CaseType.COMPLAINT else "Enquiries") for t in types],
+        "quick": [
+            {"label": lbl, "url": "?" + urlencode({"type": report["case_type"], "period": p, "value": v}),
+             "active": p == report["period"] and report_lib.period_bounds(p, v)[0] == report["start"]}
+            for p, v, lbl in report_lib.quick_periods()
+        ],
+        "query": urlencode(params),
+        "month_value": report["start"].strftime("%Y-%m"),
+        "week_value": report["start"].isoformat(),
+    }
+    return render(request, "portal/reports.html", context)
+
+
+@login_required
+@view_required
+def report_pdf(request):
+    from . import report_pdf as pdf
+
+    report, _ = _report_params(request)
+    content = pdf.render(report, request.user)
+    name = f"MMC-{report['noun_plural'].lower()}-{report['period']}-report-{report['start']:%Y-%m-%d}.pdf"
+    response = HttpResponse(content, content_type="application/pdf")
+    response["Content-Disposition"] = f'attachment; filename="{name}"'
+    return response
+
+
+@login_required
+@view_required
+def report_csv(request):
+    report, _ = _report_params(request)
+    name = f"MMC-{report['noun_plural'].lower()}-{report['period']}-report-{report['start']:%Y-%m-%d}.csv"
+    response = HttpResponse(content_type="text/csv; charset=utf-8")
+    response["Content-Disposition"] = f'attachment; filename="{name}"'
+    response.write("﻿")
+    writer = csv.writer(response)
+    writer.writerow([f"MMC Capital – {report['period_name']} {report['noun_plural'].lower()} report – {report['label']}"])
+    writer.writerow([])
+    writer.writerow([name for name, _ in EXPORT_COLUMNS])
+    for case in report["cases"]:
+        writer.writerow([_safe_cell(get(case)) for _, get in EXPORT_COLUMNS])
+    return response

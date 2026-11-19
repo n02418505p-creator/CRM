@@ -1,0 +1,141 @@
+{% extends "portal/base.html" %}
+{% block title %}Reports{% endblock %}
+{% block content %}
+<div class="page-head report-controls">
+  <div>
+    <p class="eyebrow">Weekly and monthly</p>
+    <h1>Reports</h1>
+  </div>
+  <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+    <a class="btn btn-bronze" href="{% url 'portal:report_pdf' %}?{{ query }}">Download PDF</a>
+    <button class="btn btn-ghost" type="button" onclick="window.print()">Print</button>
+    <a class="btn btn-ghost" href="{% url 'portal:report_csv' %}?{{ query }}">Export to Excel</a>
+  </div>
+</div>
+
+<section class="card card-pad report-controls" style="margin-bottom:1.2rem">
+  <form method="get" class="report-form" id="reportForm">
+    {% if types|length > 1 %}
+    <div>
+      <label>Report on</label>
+      <div class="segmented">
+        {% for key, label in types %}<a href="?type={{ key }}&period={{ report.period }}&value={{ report.value }}" class="{% if report.case_type == key %}on{% endif %}">{{ label }}</a>{% endfor %}
+      </div>
+      <input type="hidden" name="type" value="{{ report.case_type }}">
+    </div>
+    {% else %}<input type="hidden" name="type" value="{{ report.case_type }}">{% endif %}
+    <div>
+      <label>Period</label>
+      <div class="segmented">
+        <a href="?type={{ report.case_type }}&period=weekly" class="{% if report.period == 'weekly' %}on{% endif %}">Weekly</a>
+        <a href="?type={{ report.case_type }}&period=monthly" class="{% if report.period == 'monthly' %}on{% endif %}">Monthly</a>
+      </div>
+      <input type="hidden" name="period" value="{{ report.period }}">
+    </div>
+    <div>
+      {% if report.period == "monthly" %}
+      <label for="r-value">Month</label>
+      <input id="r-value" type="month" name="value" value="{{ month_value }}" onchange="this.form.submit()">
+      {% else %}
+      <label for="r-value">Any day in the week</label>
+      <input id="r-value" type="date" name="value" value="{{ week_value }}" onchange="this.form.submit()">
+      {% endif %}
+    </div>
+    <div class="quick">
+      <label>Quick pick</label>
+      <div class="quick-links">
+        {% for q in quick %}<a class="btn btn-ghost btn-sm {% if q.active %}is-on{% endif %}" href="{{ q.url }}">{{ q.label }}</a>{% endfor %}
+      </div>
+    </div>
+  </form>
+</section>
+
+<article class="card report-sheet">
+  <header class="report-head">
+    <img src="{{ brand_logo_url }}" alt="MMC Capital" class="report-logo">
+    <div class="report-title">
+      <p class="eyebrow">MMC CRM · {{ report.period_name }} report</p>
+      <h2>{{ report.noun_plural }} report</h2>
+      <p class="muted">{{ report.label }} &middot; {{ report.start|date:"j M Y" }} – {{ report.end_inclusive|date:"j M Y" }}</p>
+    </div>
+  </header>
+
+  <div class="kpis report-kpis">
+    <div class="card kpi accent">
+      <div class="label">Received</div>
+      <div class="value">{{ report.stats.received }}</div>
+      <div class="sub">{% if report.stats.change is None %}none in the previous period{% elif report.stats.change == 0 %}same as the previous period{% else %}{% if report.stats.change > 0 %}+{% endif %}{{ report.stats.change }}% on previous period ({{ report.stats.previous }}){% endif %}</div>
+    </div>
+    <div class="card kpi">
+      <div class="label">Resolved</div>
+      <div class="value">{{ report.stats.resolved }}</div>
+      <div class="sub">in this period</div>
+    </div>
+    <div class="card kpi {% if report.stats.overdue %}alert{% endif %}">
+      <div class="label">Open at period end</div>
+      <div class="value">{{ report.stats.open_at_end }}</div>
+      <div class="sub">{{ report.stats.overdue }} overdue (over {{ report.target }} days)</div>
+    </div>
+    <div class="card kpi">
+      <div class="label">Average days to resolve</div>
+      <div class="value">{% if report.stats.avg_days is not None %}{{ report.stats.avg_days }}{% else %}–{% endif %}</div>
+      <div class="sub">{% if report.stats.within_pct is not None %}{{ report.stats.within_pct }}% within {{ report.target }} days{% else %}nothing resolved{% endif %}</div>
+    </div>
+  </div>
+
+  <div class="report-grid">
+    <section>
+      <h3>By status</h3>
+      <div class="bars">{% for r in report.by_status %}<div class="bar-row"><span>{{ r.label }}</span><span class="bar"><span class="s-new" style="width:{{ r.pct }}%;background:var(--navy)"></span></span><strong style="text-align:right">{{ r.count }}</strong></div>{% endfor %}</div>
+    </section>
+    <section>
+      <h3>By source</h3>
+      <div class="bars">{% for r in report.by_source %}<div class="bar-row"><span>{{ r.label }}</span><span class="bar"><span style="width:{{ r.pct }}%;background:var(--bronze)"></span></span><strong style="text-align:right">{{ r.count }}</strong></div>{% empty %}<p class="muted small">Nothing in this period.</p>{% endfor %}</div>
+    </section>
+    {% for title, rows in report.extra %}
+    <section>
+      <h3>{{ title }}</h3>
+      <div class="bars">{% for r in rows %}<div class="bar-row"><span title="{{ r.label }}">{{ r.label }}</span><span class="bar"><span style="width:{{ r.pct }}%;background:var(--bronze)"></span></span><strong style="text-align:right">{{ r.count }}</strong></div>{% endfor %}</div>
+    </section>
+    {% endfor %}
+  </div>
+
+  <section class="report-section">
+    <h3>By staff member</h3>
+    <div class="table-wrap">
+      <table class="list">
+        <thead><tr><th>Handled by</th><th>Received</th><th>Resolved / closed</th><th>Still open</th></tr></thead>
+        <tbody>
+        {% for r in report.by_handler %}
+          <tr><td data-label="Handled by" class="ref">{{ r.label }}</td><td data-label="Received">{{ r.received }}</td><td data-label="Resolved / closed">{{ r.resolved }}</td><td data-label="Still open">{{ r.open }}</td></tr>
+        {% empty %}<tr><td colspan="4" class="empty">Nothing in this period.</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="report-section">
+    <h3>{{ report.noun_plural }} received ({{ report.cases|length }})</h3>
+    <div class="table-wrap">
+      <table class="list">
+        <thead><tr><th>Reference</th><th>Received</th><th>Client</th><th>{% if report.is_enquiry %}About{% else %}Nature of the complaint{% endif %}</th><th>Handled by</th><th>Status</th><th>Days</th></tr></thead>
+        <tbody>
+        {% for c in report.cases %}
+          <tr data-href="{% url 'portal:detail' c.reference %}">
+            <td data-label="Reference" class="ref"><a href="{% url 'portal:detail' c.reference %}">{{ c.reference }}</a></td>
+            <td data-label="Received" class="small">{{ c.date_received|date:"j M, H:i" }}</td>
+            <td data-label="Client">{{ c.client_name }}{% if c.organisation %}<div class="muted small">{{ c.organisation }}</div>{% endif %}</td>
+            <td data-label="{% if report.is_enquiry %}About{% else %}Complaint{% endif %}" class="clip">{% if report.is_enquiry %}{{ c.service|default:c.subject|default:"—" }}{% else %}{{ c.nature_of_complaint|truncatechars:110 }}{% endif %}</td>
+            <td data-label="Handled by" class="small">{% if c.assigned_to %}{{ c.assigned_to.get_full_name|default:c.assigned_to.username }}{% else %}<span class="muted">Unassigned</span>{% endif %}</td>
+            <td data-label="Status">{% include "portal/_status.html" %}</td>
+            <td data-label="Days">{{ c.days_open }}</td>
+          </tr>
+        {% empty %}<tr><td colspan="7" class="empty">Nothing received in this period.</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer class="report-foot muted small">Generated {{ report.generated_at|date:"j M Y, H:i" }} by {{ user.get_full_name|default:user.username }} · MMC Capital · Confidential</footer>
+</article>
+{% endblock %}

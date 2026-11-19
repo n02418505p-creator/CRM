@@ -94,6 +94,8 @@ class PhoneLayoutTests(StaticLiveServerTestCase):
             ("conversation", f"/complaints/{e}/conversation/"),
             ("conversations", "/conversations/"),
             ("notifications", "/notifications/"),
+            ("report-weekly", "/reports/?period=weekly"),
+            ("report-monthly-enquiries", "/reports/?type=enquiry&period=monthly"),
             ("staff-admin", "/admin/auth/user/"),
             ("staff-edit", f"/admin/auth/user/{self.admin.pk}/change/"),
         ]

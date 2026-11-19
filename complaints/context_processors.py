@@ -14,6 +14,8 @@ def nav_section(request):
         return name
     if name == "detail":
         return "list"
+    if name == "reports":
+        return "reports"
     if name in ("conversation", "conversations"):
         return "conversations"
     return name or ""

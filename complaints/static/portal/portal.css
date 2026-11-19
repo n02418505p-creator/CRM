@@ -541,3 +541,42 @@ label.check input { margin-top: .2rem; accent-color: var(--navy); }
   .filters .actions { display: flex; gap: .5rem; }
   .filters .actions .btn { flex: 1; justify-content: center; }
 }
+
+/* Reports */
+.report-form { display: flex; flex-wrap: wrap; gap: 1rem 1.4rem; align-items: flex-end; }
+.report-form label { font-size: .75rem; color: var(--muted); }
+.report-form input[type=month], .report-form input[type=date] { width: auto; min-width: 180px; }
+.quick-links { display: flex; gap: .4rem; flex-wrap: wrap; }
+.quick-links .is-on { background: var(--navy); color: #fff; border-color: var(--navy); }
+.report-sheet { padding: 1.6rem 1.8rem; }
+.report-head { display: flex; align-items: center; gap: 1.4rem; padding-bottom: 1rem; margin-bottom: 1.2rem; border-bottom: 2px solid var(--bronze); }
+.report-logo { height: 54px; width: auto; }
+[data-theme="dark"] .report-logo { background: #fff; border-radius: 8px; padding: 4px 8px; }
+.report-title h2 { font-size: 1.7rem; }
+.report-title .muted { margin: .2rem 0 0; }
+.report-kpis { margin-bottom: 1.4rem; }
+.report-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.2rem 2rem; margin-bottom: 1.4rem; }
+.report-grid h3, .report-section h3 { margin-bottom: .8rem; }
+.report-section { margin-top: 1.4rem; }
+.report-section .table-wrap { border: 1px solid var(--line); border-radius: var(--radius); }
+.report-foot { margin-top: 1.4rem; padding-top: .8rem; border-top: 1px solid var(--line); }
+@media (max-width: 820px) {
+  .report-sheet { padding: 1.1rem; }
+  .report-head { flex-direction: column; align-items: flex-start; gap: .8rem; }
+  .report-logo { height: 44px; }
+  .report-form > div { width: 100%; }
+  .report-form .segmented { width: 100%; }
+  .report-form input[type=month], .report-form input[type=date] { width: 100%; }
+  .report-section .table-wrap { border: 0; }
+}
+@media print {
+  .sidebar, .topbar, .report-controls, .drawer-backdrop, .messages, .toast { display: none !important; }
+  .app { display: block; }
+  body { background: #fff; }
+  .content { padding: 0; max-width: none; }
+  .report-sheet { border: 0; box-shadow: none; padding: 0; }
+  .card { box-shadow: none; }
+  .report-section, .report-grid section { break-inside: avoid; }
+  .table-wrap { overflow: visible; }
+  a { color: inherit; text-decoration: none; }
+}
