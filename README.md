@@ -60,6 +60,7 @@ Superusers have full access. Lists, case pages, conversations, exports, search, 
 | `complaints/` | The CRM app: models, views, API, roles, emails, templates and static files |
 | `complaints/enquiries.py` | Service list (with descriptions) and parser for website enquiries |
 | `complaints/tests.py` | Automated tests (run on every push by GitHub Actions) |
+| `complaints/tests_mobile.py` | Phone-size check: opens every page in Chromium at 390px and 360px, fails if anything is wider than the screen, and publishes screenshots to the `mobile-screenshots` branch |
 | `render.yaml`, `build.sh`, `requirements.txt` | Render deployment |
 | `website/public_html/` | Files in the website's `public_html` (`complaints.php`, `submit-complaint.php`, `complaints-mail.php`) |
 | `website/mmc-complaints/` | Private website files that sit **next to** `public_html`: `config.php`, `complaints-lib.php`, `retry-queue.php`, `inbound-email.php` |
