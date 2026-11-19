@@ -147,12 +147,17 @@ def render(report, generated_by):
         data = [["", *columns]] + [[_p(r["label"], s["cell"]), r["count"], f"{r['pct']}%"] for r in rows]
         if len(data) == 1:
             data.append([_p("Nothing in this period", s["muted"]), "", ""])
-        return KeepTogether([_p(title, s["h2"]), _table(data, [width * 0.62 / 2, width * 0.19 / 2, width * 0.19 / 2])])
+        col = width / 2 - 6 * mm
+        return [_p(title, s["h2"]), _table(data, [col * 0.62, col * 0.19, col * 0.19])]
 
-    half = width / 2 - 4 * mm
+    # "By status" and "By source" side by side (plain lists inside the cells; no KeepTogether here)
     pair = Table([[breakdown("By status", report["by_status"]), breakdown("By source", report["by_source"])]],
-                 colWidths=[half + 4 * mm, half + 4 * mm])
-    pair.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP"), ("LEFTPADDING", (0, 0), (-1, -1), 0)]))
+                 colWidths=[width / 2, width / 2])
+    pair.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 6 * mm),
+    ]))
     story.append(pair)
 
     for title, rows in report["extra"]:
