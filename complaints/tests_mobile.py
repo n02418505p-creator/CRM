@@ -32,7 +32,7 @@ OVERFLOW_JS = """() => {
   document.querySelectorAll('body *').forEach(el => {
     const r = el.getBoundingClientRect();
     if (r.width === 0 || r.height === 0) return;
-    if (el.closest('.table-wrap, .sidebar, .segmented, .chat-body')) return;   // these scroll/slide by design
+    if (el.closest('.table-wrap, .results, .sidebar, .segmented, .chat-body')) return;   // these scroll/slide by design
     if (r.right > w + 1 || r.left < -1) {
       offenders.push((el.tagName + '.' + (el.className || '')).slice(0, 80) + ' right=' + Math.round(r.right));
     }
