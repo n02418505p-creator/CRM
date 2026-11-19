@@ -36,6 +36,11 @@ MMC Capital's client relations system for **complaints** and **enquiries**.
 - **Notifications:** a bell with an unread count, live pop-ups and optional desktop alerts. They cover new cases, assignments, status changes and client replies.
 - **Look:** MMC branding, light and dark themes, and a layout that works on phones, with a menu button and a fixed sign-in screen that shows the logo.
 
+**Reports**
+- **Weekly and monthly reports** for complaints (Complaint handlers) and enquiries (Client service); administrators can run both.
+- **Contents:** received (compared with the previous period), resolved, open at period end, overdue, average days to resolve and % resolved within target; breakdowns by status, source and staff member; staff named in complaints; enquiries by service, type and division; and the list of cases received.
+- **Formats:** view on screen, **Download PDF** (MMC Capital logo in the header, page footer), **Print**, or **Export to Excel**.
+
 **Email**
 - **To clients:** a confirmation with the reference number, plus updates on status changes, on assignment and when staff send a message. Each update includes the current status, who is handling the case and the earlier messages.
 - **From clients:** replies go to `research@` and to `replies@cases.mmccapitalzim.com`, which files them in the CRM. Quoted earlier emails, Outlook image placeholders and out-of-office replies are removed or ignored.
